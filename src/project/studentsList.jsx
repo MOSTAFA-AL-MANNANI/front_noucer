@@ -8,6 +8,7 @@ export default function StudentsList() {
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
   const [searchField, setSearchField] = useState("all");
+  const [filiereFilter, setFiliereFilter] = useState("all"); // حالة جديدة للتصفية حسب الشعبة
   const [loading, setLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
   const [alert, setAlert] = useState({ show: false, message: "", type: "" });
@@ -71,11 +72,29 @@ export default function StudentsList() {
     }
   };
 
+  // وظائف التصفية حسب الشعبة
+  const filterByFiliere = (filiere) => {
+    setFiliereFilter(filiere);
+    setSearch(""); // إعادة ضبط البحث النصي عند التصفية بالشعبة
+  };
+
+  const resetFiliereFilter = () => {
+    setFiliereFilter("all");
+  };
+
   // Filtrage avancé avec useMemo
   const filteredStudents = useMemo(() => {
-    if (!search.trim()) return students;
+    let filtered = students;
 
-    return students.filter(student => {
+    // التصفية حسب الشعبة أولاً
+    if (filiereFilter !== "all") {
+      filtered = filtered.filter(student => student.filiere === filiereFilter);
+    }
+
+    // ثم التصفية حسب البحث النصي
+    if (!search.trim()) return filtered;
+
+    return filtered.filter(student => {
       const term = search.toLowerCase();
       
       switch (searchField) {
@@ -98,12 +117,12 @@ export default function StudentsList() {
           );
       }
     });
-  }, [students, search, searchField]);
+  }, [students, search, searchField, filiereFilter]);
 
   const getFiliereColor = (filiere) => {
     switch (filiere) {
-      case "développement web": return "bg-purple-100 text-purple-800 border-purple-200";
-      case "marketing digital": return "bg-pink-100 text-pink-800 border-pink-200";
+      case "Développement web": return "bg-purple-100 text-purple-800 border-purple-200";
+      case "Marketing digital": return "bg-pink-100 text-pink-800 border-pink-200";
       case "Création de contenu": return "bg-indigo-100 text-indigo-800 border-indigo-200";
       default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -112,8 +131,8 @@ export default function StudentsList() {
   const getStatusColor = (status) => {
     switch (status) {
       case "registred": return "bg-blue-100 text-blue-800 border-blue-200";
-      case "انتظار": return "bg-amber-100 text-amber-800 border-amber-200";
-      case "نجاح": return "bg-green-100 text-green-800 border-green-200";
+      case "attende": return "bg-amber-100 text-amber-800 border-amber-200";
+      case "passed": return "bg-green-100 text-green-800 border-green-200";
       default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
@@ -121,8 +140,8 @@ export default function StudentsList() {
   const getStatusText = (status) => {
     switch (status) {
       case "registred": return "Inscrit";
-      case "انتظار": return "En attente";
-      case "نجاح": return "Réussi";
+      case "attende": return "En attente";
+      case "passed": return "Réussi";
       default: return status;
     }
   };
@@ -229,22 +248,38 @@ export default function StudentsList() {
               </div>
             </div>
             
-            {search && (
+            {(search || filiereFilter !== "all") && (
               <button
-                onClick={() => setSearch("")}
+                onClick={() => {
+                  setSearch("");
+                  setFiliereFilter("all");
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition duration-200 whitespace-nowrap"
               >
-                Réinitialiser
+                Réinitialiser tous les filtres
               </button>
             )}
           </div>
           
           {/* Indicateur de recherche */}
-          {search && (
+          {(search || filiereFilter !== "all") && (
             <div className="mt-3 p-2 bg-blue-50 rounded-lg">
               <div className="text-sm text-blue-700 flex items-center justify-between">
                 <span>
-                  Recherche: <strong>"{search}"</strong> dans <strong>{searchField === "all" ? "tous les champs" : searchField}</strong>
+                  {search && filiereFilter !== "all" ? (
+                    <>
+                      Recherche: <strong>"{search}"</strong> dans <strong>{searchField === "all" ? "tous les champs" : searchField}</strong> 
+                      et Filière: <strong>{filiereFilter}</strong>
+                    </>
+                  ) : search ? (
+                    <>
+                      Recherche: <strong>"{search}"</strong> dans <strong>{searchField === "all" ? "tous les champs" : searchField}</strong>
+                    </>
+                  ) : (
+                    <>
+                      Filtre par filière: <strong>{filiereFilter}</strong>
+                    </>
+                  )}
                 </span>
                 <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
                   {filteredStudents.length} résultat(s)
@@ -254,29 +289,64 @@ export default function StudentsList() {
           )}
         </div>
 
-        {/* Statistiques rapides */}
+        {/* Statistiques rapides avec إمكانية النقر */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-center text-white shadow-lg">
+          <div 
+            onClick={resetFiliereFilter}
+            className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-center text-white shadow-lg cursor-pointer transform transition duration-200 hover:scale-105 hover:shadow-xl ${
+              filiereFilter === "all" ? "ring-4 ring-blue-300 ring-opacity-70" : ""
+            }`}
+          >
             <div className="text-2xl font-bold">{students.length}</div>
-            <div className="text-sm opacity-90">Total Inscrits</div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-center text-white shadow-lg">
-            <div className="text-2xl font-bold">
-              {students.filter(s => s.filiere === "développement web").length}
+            <div className="text-sm opacity-90 flex items-center justify-center">
+              Total Inscrits
+              {filiereFilter === "all" && <span className="ml-2">✓</span>}
             </div>
-            <div className="text-sm opacity-90">Développement Web</div>
           </div>
-          <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg p-4 text-center text-white shadow-lg">
+          
+          <div 
+            onClick={() => filterByFiliere("Développement web")}
+            className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-center text-white shadow-lg cursor-pointer transform transition duration-200 hover:scale-105 hover:shadow-xl ${
+              filiereFilter === "Développement web" ? "ring-4 ring-purple-300 ring-opacity-70" : ""
+            }`}
+          >
             <div className="text-2xl font-bold">
-              {students.filter(s => s.filiere === "marketing digital").length}
+              {students.filter(s => s.filiere === "Développement web").length}
             </div>
-            <div className="text-sm opacity-90">Marketing Digital</div>
+            <div className="text-sm opacity-90 flex items-center justify-center">
+              Développement Web
+              {filiereFilter === "Développement web" && <span className="ml-2">✓</span>}
+            </div>
           </div>
-          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-center text-white shadow-lg">
+          
+          <div 
+            onClick={() => filterByFiliere("Marketing digital")}
+            className={`bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg p-4 text-center text-white shadow-lg cursor-pointer transform transition duration-200 hover:scale-105 hover:shadow-xl ${
+              filiereFilter === "Marketing digital" ? "ring-4 ring-pink-300 ring-opacity-70" : ""
+            }`}
+          >
+            <div className="text-2xl font-bold">
+              {students.filter(s => s.filiere === "Marketing digital").length}
+            </div>
+            <div className="text-sm opacity-90 flex items-center justify-center">
+              Marketing Digital
+              {filiereFilter === "Marketing digital" && <span className="ml-2">✓</span>}
+            </div>
+          </div>
+          
+          <div 
+            onClick={() => filterByFiliere("Création de contenu")}
+            className={`bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-center text-white shadow-lg cursor-pointer transform transition duration-200 hover:scale-105 hover:shadow-xl ${
+              filiereFilter === "Création de contenu" ? "ring-4 ring-indigo-300 ring-opacity-70" : ""
+            }`}
+          >
             <div className="text-2xl font-bold">
               {students.filter(s => s.filiere === "Création de contenu").length}
             </div>
-            <div className="text-sm opacity-90">Création Contenu</div>
+            <div className="text-sm opacity-90 flex items-center justify-center">
+              Création Contenu
+              {filiereFilter === "Création de contenu" && <span className="ml-2">✓</span>}
+            </div>
           </div>
         </div>
 
@@ -289,11 +359,18 @@ export default function StudentsList() {
                 👥 Étudiants Inscrits
                 <span className="ml-3 bg-white text-amber-600 text-sm px-3 py-1 rounded-full shadow-sm">
                   {filteredStudents.length} étudiant(s)
-                  {search && ` sur ${students.length}`}
+                  {(search || filiereFilter !== "all") && ` sur ${students.length}`}
                 </span>
               </h3>
-              <div className="text-sm text-gray-700 bg-white bg-opacity-50 px-3 py-1 rounded-full">
-                Filtre: <span className="font-semibold capitalize">{searchField}</span>
+              <div className="flex items-center space-x-2">
+                {filiereFilter !== "all" && (
+                  <div className="text-sm text-gray-700 bg-white bg-opacity-50 px-3 py-1 rounded-full">
+                    Filière: <span className="font-semibold">{filiereFilter}</span>
+                  </div>
+                )}
+                <div className="text-sm text-gray-700 bg-white bg-opacity-50 px-3 py-1 rounded-full">
+                  Recherche: <span className="font-semibold capitalize">{searchField}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -363,17 +440,24 @@ export default function StudentsList() {
                   </div>
                 </div>
                 <p className="text-gray-600 font-medium text-lg mb-2">
-                  {search ? "Aucun étudiant ne correspond à votre recherche" : "Aucun étudiant inscrit"}
+                  {search || filiereFilter !== "all" 
+                    ? "Aucun étudiant ne correspond à vos critères de filtrage" 
+                    : "Aucun étudiant inscrit"}
                 </p>
                 <p className="text-gray-500 mb-4">
-                  {search ? "Essayez de modifier vos termes de recherche ou vérifiez l'orthographe" : "Les étudiants inscrits apparaîtront ici une fois ajoutés"}
+                  {search || filiereFilter !== "all" 
+                    ? "Essayez de modifier vos termes de recherche ou vérifiez l'orthographe" 
+                    : "Les étudiants inscrits apparaîtront ici une fois ajoutés"}
                 </p>
-                {search && (
+                {(search || filiereFilter !== "all") && (
                   <button
-                    onClick={() => setSearch("")}
+                    onClick={() => {
+                      setSearch("");
+                      setFiliereFilter("all");
+                    }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Réinitialiser la recherche
+                    Réinitialiser tous les filtres
                   </button>
                 )}
               </div>
@@ -386,11 +470,16 @@ export default function StudentsList() {
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600">
                   Affichage de <span className="font-medium">{filteredStudents.length}</span> sur <span className="font-medium">{students.length}</span> étudiants inscrits
+                  {filiereFilter !== "all" && (
+                    <span className="ml-2 text-blue-600">
+                      (Filtré par: {filiereFilter})
+                    </span>
+                  )}
                 </p>
                 <div className="text-sm text-gray-500 flex items-center space-x-2">
-                  {search && (
+                  {(search || filiereFilter !== "all") && (
                     <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                      Recherche active
+                      Filtre actif
                     </span>
                   )}
                   <span>Dernière mise à jour: {new Date().toLocaleTimeString()}</span>

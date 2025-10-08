@@ -114,6 +114,87 @@ export default function Sidebar() {
             </>
           )}
         </NavLink>
+
+        <NavLink 
+          to="/filiere" 
+          className={({ isActive }) => 
+            `${navLinkClasses} ${isActive ? activeLinkClasses : ''}`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span className="font-medium">Gestion de Filiere</span>
+              {isActive && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </>
+          )}
+        </NavLink>
+
+        <NavLink 
+          to="/section" 
+          className={({ isActive }) => 
+            `${navLinkClasses} ${isActive ? activeLinkClasses : ''}`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span className="font-medium">Gestion de Section</span>
+              {isActive && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </>
+          )}
+        </NavLink>
+
+          <NavLink 
+          to="/EnrollStudent" 
+          className={({ isActive }) => 
+            `${navLinkClasses} ${isActive ? activeLinkClasses : ''}`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span className="font-medium">EnrollStudent</span>
+              {isActive && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </>
+          )}
+        </NavLink>
+
+        <NavLink 
+          to="/absence" 
+          className={({ isActive }) => 
+            `${navLinkClasses} ${isActive ? activeLinkClasses : ''}`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span className="font-medium">Abscense</span>
+              {isActive && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </>
+          )}
+        </NavLink>
+
+                <NavLink 
+          to="/document" 
+          className={({ isActive }) => 
+            `${navLinkClasses} ${isActive ? activeLinkClasses : ''}`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span className="font-medium">Document</span>
+              {isActive && (
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+              )}
+            </>
+          )}
+        </NavLink>
+
       </nav>
 
       {/* Bouton Logout */}

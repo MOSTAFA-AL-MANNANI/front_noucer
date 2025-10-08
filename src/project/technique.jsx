@@ -4,17 +4,30 @@ import Sidebar from "./sidebar";
 
 export default function Technique() {
   const [techniques, setTechniques] = useState([]);
-  const [form, setForm] = useState({ question: "" });
+  const [filteredTechniques, setFilteredTechniques] = useState([]);
+  const [form, setForm] = useState({ question: "", filiere: "" });
   const [editId, setEditId] = useState(null);
+  const [selectedFiliere, setSelectedFiliere] = useState("toutes");
 
   const fetchData = async () => {
     const res = await api.get("/techniques");
     setTechniques(res.data);
+    setFilteredTechniques(res.data);
   };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Filtrer les questions selon la filière sélectionnée
+  useEffect(() => {
+    if (selectedFiliere === "toutes") {
+      setFilteredTechniques(techniques);
+    } else {
+      const filtered = techniques.filter(t => t.filiere === selectedFiliere);
+      setFilteredTechniques(filtered);
+    }
+  }, [selectedFiliere, techniques]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,7 +37,7 @@ export default function Technique() {
     } else {
       await api.post("/techniques", form);
     }
-    setForm({ question: "" });
+    setForm({ question: "", filiere: "" });
     fetchData();
   };
 
@@ -36,13 +49,16 @@ export default function Technique() {
   };
 
   const handleEdit = (t) => {
-    setForm({ question: t.question });
+    setForm({ 
+      question: t.question, 
+      filiere: t.filiere || ""
+    });
     setEditId(t.id);
   };
 
   const cancelEdit = () => {
     setEditId(null);
-    setForm({ question: "" });
+    setForm({ question: "", filiere: "" });
   };
 
   return (
@@ -78,11 +94,29 @@ export default function Technique() {
                 type="text"
                 placeholder="Saisissez une question technique..."
                 value={form.question}
-                onChange={(e) => setForm({ question: e.target.value })}
+                onChange={(e) => setForm({ ...form, question: e.target.value })}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition duration-200"
               />
             </div>
+            
+            <div className="mb-4">
+              <label className="block text-gray-700 font-medium mb-2">
+                Filière
+              </label>
+                <select 
+                  value={form.filiere} 
+                  onChange={(e) => setForm({ ...form, filiere: e.target.value })} 
+                  required
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                <option value="">Sélectionner une filière</option>
+                <option value="développement web">Développement web</option>
+                <option value="marketing digital">Marketing digital</option>
+                <option value="création de contenu">Création de contenu</option>
+              </select>
+            </div>
+            
             <div className="flex space-x-3">
               <button 
                 type="submit"
@@ -120,28 +154,74 @@ export default function Technique() {
 
         {/* Techniques List */}
         <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-          {/* List Header */}
+         
           <div className="bg-blue-600 px-6 py-4">
-            <div className="flex items-center">
-              <svg className="w-6 h-6 text-white mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <h3 className="text-xl font-semibold text-white">
-                Liste des Questions Techniques ({techniques.length})
-              </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center mb-3 sm:mb-0">
+                <svg className="w-6 h-6 text-white mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <h3 className="text-xl font-semibold text-white">
+                  Liste des Questions Techniques ({filteredTechniques.length})
+                </h3>
+              </div>
+              
+              {/* Filtre par filière */}
+              <div className="flex items-center space-x-2">
+                <label htmlFor="filiereFilter" className="text-white text-sm font-medium">
+                  Filtrer par filière:
+                </label>
+                <select
+                  id="filiereFilter"
+                  value={selectedFiliere}
+                  onChange={(e) => setSelectedFiliere(e.target.value)}
+                  className="px-3 py-1 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="toutes">Toutes les filières</option>
+                  <option value="Développement web">Développement web</option>
+                  <option value="Marketing digital">Marketing digital</option>
+                  <option value="Création de contenu">Création de contenu</option>
+                </select>
+              </div>
             </div>
+            
+            {/* Indicateur de filtre actif */}
+            {selectedFiliere !== "toutes" && (
+              <div className="mt-3 flex items-center">
+                <span className="text-blue-100 text-sm">
+                  Filtre actif: <span className="font-semibold">{selectedFiliere}</span>
+                </span>
+                <button
+                  onClick={() => setSelectedFiliere("toutes")}
+                  className="ml-3 text-blue-200 hover:text-white text-sm underline"
+                >
+                  Afficher toutes les questions
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Techniques Grid */}
           <div className="p-6">
-            {techniques.length > 0 ? (
+            {filteredTechniques.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {techniques.map((t) => (
+                {filteredTechniques.map((t) => (
                   <div key={t.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition duration-200">
                     <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-medium text-amber-400 bg-amber-50 px-2 py-1 rounded">
-                        ID: {t.id}
-                      </span>
+                      <div className="flex flex-col space-y-1">
+                        <span className="text-sm font-medium text-amber-400 bg-amber-50 px-2 py-1 rounded">
+                          ID: {t.id}
+                        </span>
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${
+                          t.filiere === "développement web" 
+                            ? "bg-blue-100 text-blue-800" 
+                            : t.filiere === "marketing digital" 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-purple-100 text-purple-800"
+                        }`}>
+                          {t.filiere || "Non spécifiée"}
+                        </span>
+                      </div>
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleEdit(t)}
@@ -163,7 +243,7 @@ export default function Technique() {
                         </button>
                       </div>
                     </div>
-                    <p className="text-gray-700 line-clamp-3">{t.question}</p>
+                    <p className="text-gray-700 line-clamp-3 mb-2">{t.question}</p>
                   </div>
                 ))}
               </div>
@@ -173,18 +253,39 @@ export default function Technique() {
                   <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <p className="text-xl font-medium text-gray-600 mb-2">Aucune question technique</p>
-                  <p className="text-gray-500">Commencez par ajouter une question technique</p>
+                  <p className="text-xl font-medium text-gray-600 mb-2">
+                    {selectedFiliere !== "toutes" 
+                      ? `Aucune question technique pour la filière "${selectedFiliere}"`
+                      : "Aucune question technique"
+                    }
+                  </p>
+                  <p className="text-gray-500">
+                    {selectedFiliere !== "toutes" 
+                      ? "Essayez de changer de filière ou ajoutez une nouvelle question"
+                      : "Commencez par ajouter une question technique"
+                    }
+                  </p>
+                  {selectedFiliere !== "toutes" && (
+                    <button
+                      onClick={() => setSelectedFiliere("toutes")}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200"
+                    >
+                      Voir toutes les questions
+                    </button>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
           {/* List Footer */}
-          {techniques.length > 0 && (
+          {filteredTechniques.length > 0 && (
             <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
               <p className="text-gray-600 font-medium">
-                Total: {techniques.length} question(s) technique(s)
+                {selectedFiliere === "toutes" 
+                  ? `Total: ${filteredTechniques.length} question(s) technique(s)`
+                  : `Filière ${selectedFiliere}: ${filteredTechniques.length} question(s) technique(s)`
+                }
               </p>
             </div>
           )}

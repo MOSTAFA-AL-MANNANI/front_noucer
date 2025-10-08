@@ -16,6 +16,7 @@ export default function Students() {
     gmail: "",
     filiere: "",
     cin: "",
+    adresse: "",
   });
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,7 @@ export default function Students() {
       gmail: "",
       filiere: "",
       cin: "",
+      adresse: "",
     });
     setEditId(null);
   };
@@ -112,6 +114,7 @@ export default function Students() {
       gmail: s.gmail,
       filiere: s.filiere,
       cin: s.cin,
+      adresse: s.adresse,
     });
     setEditId(s.id_stu);
     showAlert(`Modification de ${s.nom} ${s.prenom}`, "info");
@@ -131,6 +134,7 @@ export default function Students() {
         "Date Naissance": student.date_naissance,
         "Niveau Scolaire": student.niveau_sco,
         "Filière": student.filiere,
+        "Adresse": student.adresse,
         "Statut": student.status,
       }));
 
@@ -191,8 +195,8 @@ export default function Students() {
 
   const getFiliereColor = (filiere) => {
     switch (filiere) {
-      case "développement web": return "bg-purple-100 text-purple-800 border border-purple-200";
-      case "marketing digital": return "bg-pink-100 text-pink-800 border border-pink-200";
+      case "Développement web": return "bg-purple-100 text-purple-800 border border-purple-200";
+      case "Marketing digital": return "bg-pink-100 text-pink-800 border border-pink-200";
       case "Création de contenu": return "bg-indigo-100 text-indigo-800 border border-indigo-200";
       default: return "bg-gray-100 text-gray-800 border border-gray-200";
     }
@@ -412,6 +416,17 @@ export default function Students() {
                     />
                   </div>
 
+                    <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
+                    <input
+                      type="text"
+                      placeholder="Adresse"
+                      value={form.adresse}
+                      onChange={(e) => setForm({ ...form, adresse: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
                   {/* Filière */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Filière</label>
@@ -421,8 +436,8 @@ export default function Students() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Sélectionner une filière</option>
-                      <option value="développement web">Développement web</option>
-                      <option value="marketing digital">Marketing digital</option>
+                      <option value="Développement web">Développement web</option>
+                      <option value="Marketing digital">Marketing digital</option>
                       <option value="Création de contenu">Création de contenu</option>
                     </select>
                   </div>
@@ -476,13 +491,13 @@ export default function Students() {
               </div>
               <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-center text-white shadow-lg">
                 <div className="text-2xl font-bold">
-                  {students.filter(s => s.status === "انتظار").length}
+                  {students.filter(s => s.status === "attende").length}
                 </div>
                 <div className="text-sm opacity-90">En attente</div>
               </div>
               <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-center text-white shadow-lg">
                 <div className="text-2xl font-bold">
-                  {students.filter(s => s.status === "نجاح").length}
+                  {students.filter(s => s.status === "passed").length}
                 </div>
                 <div className="text-sm opacity-90">Réussis</div>
               </div>
@@ -566,7 +581,9 @@ export default function Students() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Étudiant</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filière</th>
+                      
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adresse</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -591,8 +608,13 @@ export default function Students() {
                         <td className="px-6 py-4">
                           <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(s.status)}`}>
                             {s.status === "registred" ? "Inscrit" : 
-                             s.status === "انتظار" ? "En attente" : 
-                             s.status === "نجاح" ? "Réussi" : s.status}
+                             s.status === "attende" ? "En attente" : 
+                             s.status === "passed" ? "Réussi" : s.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full `}>
+                            {s.adresse || "Non Adresse renseignée"}
                           </span>
                         </td>
                         <td className="px-6 py-4">
