@@ -17,7 +17,9 @@ import FiliereCRUD from './project/filiere'
 import SectionCRUD from './project/section'
 import AssignStudents from './project/EnrollStudent'
 import MarkAttendance from './project/MarkAttendance'
-import DocumentsManager from './project/DocumentsManager'
+import Document from './project/Document'
+import SectionsStudents from './project/getStuSec'
+import Absences from './project/absence'
 
 
 function App() {
@@ -123,7 +125,22 @@ function App() {
                   <Route path="/document" element={
           <ProtectedRoute>
             <div className="min-h-screen bg-gray-50" dir="ltr">
-              <DocumentsManager />
+              <Document />
+            </div>
+          </ProtectedRoute>
+        } />
+
+                        <Route path="/section/student" element={
+          <ProtectedRoute>
+            <div className="min-h-screen bg-gray-50" dir="ltr">
+              <SectionsStudents />
+            </div>
+          </ProtectedRoute>
+        } />
+                                <Route path="/absences/list" element={
+          <ProtectedRoute>
+            <div className="min-h-screen bg-gray-50" dir="ltr">
+              <Absences />
             </div>
           </ProtectedRoute>
         } />

@@ -5,60 +5,72 @@ import * as XLSX from "xlsx";
 
 export default function WaitingStudents() {
   const [students, setStudents] = useState([]);
+  const [filieres, setFilieres] = useState([]);
+  const [activeFiliere, setActiveFiliere] = useState("all");
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchField, setSearchField] = useState("all"); // "all", "nom", "prenom", "cin"
+  const [searchField, setSearchField] = useState("all");
   const [exportLoading, setExportLoading] = useState(false);
 
-  // Alert helper function
   const showAlert = (text, type = "success") => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: "", type: "" }), 4000);
   };
 
+  const fetchFilieres = async () => {
+    try {
+      const res = await api.get("/students/filiere/en");
+      setFilieres(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchWaiting = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/students/waiting");
-      setStudents(res.data);
-      showAlert(`${res.data.length} étudiant(s) chargé(s) avec succès`, "success");
+      const res = await api.get("/students/waiting/en");
+      const allStudents = [];
+      Object.keys(res.data).forEach(filiere => {
+        res.data[filiere].forEach(student => {
+          allStudents.push({ ...student, filiere });
+        });
+      });
+      setStudents(allStudents);
+      showAlert(`${allStudents.length} étudiant(s) chargé(s)`, "success");
     } catch (err) {
-      console.error("Erreur fetch:", err);
-      showAlert("Erreur lors du chargement des étudiants en attente", "error");
+      console.error(err);
+      showAlert("Erreur lors du chargement des étudiants", "error");
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchFilieres();
+    fetchWaiting();
+  }, []);
+
   const handleStatusChange = async (id, newStatus) => {
     try {
       setUpdating(true);
-      await api.put(`/students/${id}`, { status: newStatus });
-      
-      const statusMessages = {
-        passed: "étudiant accepté avec succès",
-        in_interview: "statut mis à jour vers 'En Entretien'",
-        rejected: "étudiant refusé avec succès"
-      };
-      
-      showAlert(`Statut ${statusMessages[newStatus]} !`, "success");
+      await api.put(`/students/status/en/${id}`, { status: newStatus });
+      showAlert("Statut mis à jour avec succès", "success");
       fetchWaiting();
-      
       if (selected && selected.id_stu === id) {
         setSelected({ ...selected, status: newStatus });
       }
     } catch (err) {
-      console.error("Erreur update:", err);
+      console.error(err);
       showAlert("Erreur lors de la mise à jour du statut", "error");
     } finally {
       setUpdating(false);
     }
   };
 
-  // Export to Excel function
   const exportToExcel = () => {
     setExportLoading(true);
     try {
@@ -68,362 +80,365 @@ export default function WaitingStudents() {
         "CIN": student.cin,
         "Filière": student.filiere,
         "Statut": student.status,
-        "Score Pratique": student.resultat?.[0]?.scoreP || "N/A",
-        "Score Théorique": student.resultat?.[0]?.scoreT || "N/A",
-        "Score Soft Skills": student.resultat?.[0]?.scoreS || "N/A",
-        "Total": student.resultat?.[0]?.total || "N/A"
+        "Score Pratique": student.resultat?.scoreP ?? "N/A",
+        "Score Théorique": student.resultat?.scoreT ?? "N/A",
+        "Score Soft Skills": student.resultat?.scoreS ?? "N/A",
+        "Total": student.resultat?.total ?? "N/A"
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Étudiants en Attente");
-      
-      // Create filename with current date
       const date = new Date().toISOString().split('T')[0];
       XLSX.writeFile(workbook, `etudiants_attente_${date}.xlsx`);
-      
-      showAlert(`Fichier Excel exporté avec ${dataToExport.length} étudiant(s)`, "success");
+      showAlert(`Fichier Excel exporté (${dataToExport.length} étudiants)`, "success");
     } catch (error) {
-      console.error("Erreur export:", error);
-      showAlert("Erreur lors de l'exportation Excel", "error");
+      console.error(error);
+      showAlert("Erreur lors de l'export Excel", "error");
     } finally {
       setExportLoading(false);
     }
   };
 
-  // Advanced search filtering
   const filteredStudents = useMemo(() => {
-    if (!searchTerm.trim()) return students;
+    return students
+      .filter(student => activeFiliere === "all" || student.filiere === activeFiliere)
+      .filter(student => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        switch (searchField) {
+          case "nom": return student.nom.toLowerCase().includes(term);
+          case "prenom": return student.prenom.toLowerCase().includes(term);
+          case "cin": return student.cin.toLowerCase().includes(term);
+          case "filiere": return student.filiere.toLowerCase().includes(term);
+          default:
+            return (
+              student.nom.toLowerCase().includes(term) ||
+              student.prenom.toLowerCase().includes(term) ||
+              student.cin.toLowerCase().includes(term) ||
+              student.filiere.toLowerCase().includes(term)
+            );
+        }
+      });
+  }, [students, searchTerm, searchField, activeFiliere]);
 
-    return students.filter(student => {
-      const term = searchTerm.toLowerCase();
-      
-      switch (searchField) {
-        case "nom":
-          return student.nom.toLowerCase().includes(term);
-        case "prenom":
-          return student.prenom.toLowerCase().includes(term);
-        case "cin":
-          return student.cin.toLowerCase().includes(term);
-        case "all":
-        default:
-          return (
-            student.nom.toLowerCase().includes(term) ||
-            student.prenom.toLowerCase().includes(term) ||
-            student.cin.toLowerCase().includes(term) ||
-            student.filiere.toLowerCase().includes(term)
-          );
-      }
-    });
-  }, [students, searchTerm, searchField]);
-
-  useEffect(() => {
-    fetchWaiting();
-  }, []);
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "passed": return "bg-green-100 text-green-800 border-green-200";
+      case "in_interview": return "bg-amber-100 text-amber-800 border-amber-200";
+      case "registred": return "bg-blue-100 text-blue-800 border-blue-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <Sidebar />
-
-      {/* Contenu principal */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto">
-        {/* En-tête amélioré */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
-          <div className="flex-1">
-            <h2 className="text-3xl font-bold text-gray-800 flex items-center">
-              <span className="text-3xl mr-3">📋</span>
-              Étudiants en Attente
-            </h2>
-            <p className="text-gray-500 mt-1">
-              {filteredStudents.length} étudiant(s) en attente de validation
-              {searchTerm && ` (${students.length} au total)`}
-            </p>
+      
+      <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
+        {/* Header */}
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                <div className="p-2 bg-blue-600 rounded-xl text-white">
+                  📋
+                </div>
+                Étudiants en Attente
+              </h1>
+              <p className="text-gray-600 text-sm md:text-base">
+                Gérez les candidatures en attente de décision
+              </p>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">
+                {filteredStudents.length} étudiant(s)
+              </span>
+            </div>
           </div>
-          
-          {/* Barre de recherche avancée */}
-          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-            <div className="flex gap-2">
-              <select
-                value={searchField}
-                onChange={(e) => setSearchField(e.target.value)}
-                className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        </div>
+
+        {/* Filières Tabs */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex flex-wrap gap-2">
+            <button 
+              onClick={() => setActiveFiliere("all")}
+              className={`px-4 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                activeFiliere === "all" 
+                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30" 
+                  : "bg-white text-gray-700 border border-gray-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50"
+              }`}
+            >
+              👥 Tous
+            </button>
+            {filieres.map(f => (
+              <button
+                key={f}
+                onClick={() => setActiveFiliere(f)}
+                className={`px-4 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                  activeFiliere === f
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30"
+                    : "bg-white text-gray-700 border border-gray-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                }`}
               >
-                <option value="all">Tous les champs</option>
-                <option value="nom">Nom</option>
-                <option value="prenom">Prénom</option>
-                <option value="cin">CIN</option>
-                <option value="filiere">Filière</option>
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search and Export Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 flex flex-col sm:flex-row gap-3">
+              <select 
+                value={searchField} 
+                onChange={e => setSearchField(e.target.value)}
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all duration-200 bg-white"
+              >
+                <option value="all">🔍 Tous les champs</option>
+                <option value="nom">👤 Nom</option>
+                <option value="prenom">👤 Prénom</option>
+                <option value="cin">🆔 CIN</option>
+                <option value="filiere">🎓 Filière</option>
               </select>
               
-              <div className="relative flex-1 min-w-[200px]">
-                <input
-                  type="text"
-                  placeholder={`Rechercher par ${searchField === "all" ? "nom, prénom, CIN..." : searchField}`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-              </div>
+              <input 
+                type="text" 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                placeholder={`Rechercher par ${searchField === 'all' ? 'tous les champs' : searchField}`}
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all duration-200 flex-1 bg-white"
+              />
             </div>
-
-            {/* Bouton Export Excel */}
-            <button
-              onClick={exportToExcel}
+            
+            <button 
+              onClick={exportToExcel} 
               disabled={exportLoading || filteredStudents.length === 0}
-              className="flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed transition-colors min-w-[140px]"
+              className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none font-medium shadow-lg shadow-green-500/20 flex items-center justify-center gap-2"
             >
               {exportLoading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   Export...
                 </>
               ) : (
                 <>
-                  <span className="mr-2">📊</span>
-                  Export Excel
+                  📊 Export Excel
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* Message de notification amélioré */}
-        {message.text && (
-          <div className={`p-4 mb-6 rounded-lg flex items-center justify-between shadow-lg transition-all duration-300 ${
-            message.type === "error" 
-              ? "bg-red-50 border-l-4 border-red-500 text-red-700" 
-              : "bg-green-50 border-l-4 border-green-500 text-green-700"
-          }`}>
-            <div className="flex items-center">
-              <span className="text-xl mr-3">
-                {message.type === "error" ? "❌" : "✅"}
-              </span>
-              <span className="font-medium">{message.text}</span>
+        {/* Main Table Card */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden transition-all duration-300">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-gray-600 animate-pulse">Chargement des étudiants...</p>
             </div>
-            <button 
-              onClick={() => setMessage({ text: "", type: "" })}
-              className="text-gray-500 hover:text-gray-700 ml-4"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* État de chargement */}
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="flex items-center text-gray-500">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
-              <p className="text-lg">Chargement des étudiants...</p>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            {/* En-tête du tableau avec statistiques */}
-            <div className="px-6 py-4 bg-gray-50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center">
-              <div className="flex items-center space-x-4 mb-2 sm:mb-0">
-                <span className="text-sm text-gray-600">
-                  Affichage de <strong>{filteredStudents.length}</strong> étudiant(s)
-                </span>
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="text-sm text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Réinitialiser la recherche
-                  </button>
-                )}
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Étudiant
+                      </th>
+                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        CIN
+                      </th>
+                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Filière
+                      </th>
+                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Statut
+                      </th>
+                      <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Scores
+                      </th>
+                      <th className="px-4 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredStudents.map(student => (
+                      <tr 
+                        key={student.id_stu} 
+                        className="hover:bg-blue-50 transition-all duration-200 group transform hover:scale-[1.002]"
+                      >
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-200 transition-colors">
+                              👤
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                                {student.nom} {student.prenom}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <code className="px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-mono border border-gray-200">
+                            {student.cin}
+                          </code>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                            {student.filiere}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(student.status)}`}>
+                            {student.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-100">
+                              <div className="font-bold text-blue-600">{student.resultat?.scoreP ?? "N/A"}</div>
+                              <div className="text-xs text-blue-800">Pratique</div>
+                            </div>
+                            <div className="text-center p-2 bg-green-50 rounded-lg border border-green-100">
+                              <div className="font-bold text-green-600">{student.resultat?.scoreT ?? "N/A"}</div>
+                              <div className="text-xs text-green-800">Théorique</div>
+                            </div>
+                            <div className="text-center p-2 bg-purple-50 rounded-lg border border-purple-100">
+                              <div className="font-bold text-purple-600">{student.resultat?.scoreS ?? "N/A"}</div>
+                              <div className="text-xs text-purple-800">Soft Skills</div>
+                            </div>
+                            <div className="text-center p-2 bg-amber-50 rounded-lg border border-amber-100">
+                              <div className="font-bold text-amber-600">{student.resultat?.total ?? "N/A"}</div>
+                              <div className="text-xs text-amber-800">Total</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <button 
+                            onClick={() => setSelected(student)}
+                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/30 font-medium"
+                          >
+                            📋 Détails
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              
-              {filteredStudents.length > 0 && (
-                <div className="text-sm text-gray-600">
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                    ⏳ En attente: {filteredStudents.filter(s => s.status === "waiting").length}
-                  </span>
+
+              {/* Empty State */}
+              {filteredStudents.length === 0 && !loading && (
+                <div className="text-center py-12">
+                  <div className="text-gray-400 text-6xl mb-4">📭</div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Aucun étudiant trouvé
+                  </h3>
+                  <p className="text-gray-500 max-w-sm mx-auto">
+                    Aucun étudiant ne correspond à vos critères de recherche.
+                  </p>
                 </div>
               )}
-            </div>
+            </>
+          )}
+        </div>
 
-            {/* Tableau des étudiants */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-6 py-3 text-sm font-medium text-gray-600 uppercase tracking-wider">Nom</th>
-                    <th className="px-6 py-3 text-sm font-medium text-gray-600 uppercase tracking-wider">Prénom</th>
-                    <th className="px-6 py-3 text-sm font-medium text-gray-600 uppercase tracking-wider">CIN</th>
-                    <th className="px-6 py-3 text-sm font-medium text-gray-600 uppercase tracking-wider">Filière</th>
-                    <th className="px-6 py-3 text-sm font-medium text-gray-600 uppercase tracking-wider">Statut</th>
-                    <th className="px-6 py-3 text-sm font-medium text-gray-600 uppercase tracking-wider text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {filteredStudents.map((student) => (
-                    <tr key={student.id_stu} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{student.nom}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-700">{student.prenom}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">{student.cin}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">{student.filiere}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
-                          ⏳ {student.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button
-                          onClick={() => setSelected(student)}
-                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                        >
-                          <span className="mr-2">👁️</span>
-                          Détails
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* État vide amélioré */}
-            {filteredStudents.length === 0 && !loading && (
-              <div className="text-center py-16 px-6">
-                <div className="text-6xl mb-4">🔍</div>
-                <p className="text-xl font-semibold text-gray-700 mb-2">
-                  {searchTerm ? "Aucun étudiant trouvé" : "Aucun étudiant en attente"}
-                </p>
-                <p className="text-gray-500 mb-4">
-                  {searchTerm 
-                    ? "Aucun étudiant ne correspond à votre recherche. Essayez d'autres termes."
-                    : "Tous les étudiants ont été traités ou aucun n'est actuellement en attente."
-                  }
-                </p>
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    Voir tous les étudiants
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Modal Détails de l'étudiant amélioré */}
+        {/* Student Detail Modal */}
         {selected && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              {/* Header du modal */}
-              <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center">
-                  <span className="text-2xl mr-3">👤</span>
-                  Détails de {selected.nom} {selected.prenom}
-                </h3>
-                <button
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform animate-scaleIn">
+              {/* Header */}
+              <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {selected.nom} {selected.prenom}
+                  </h3>
+                  <p className="text-gray-600 mt-1">Détails de l'étudiant</p>
+                </div>
+                <button 
                   onClick={() => setSelected(null)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors text-3xl leading-none"
+                  className="text-gray-400 hover:text-gray-600 text-2xl p-2 hover:bg-gray-100 rounded-lg transition-all duration-200 transform hover:rotate-90"
                 >
-                  &times;
+                  ✕
                 </button>
               </div>
 
-              {/* Contenu du modal */}
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div><label className="font-semibold text-gray-600 block mb-1">Nom</label><p className="text-gray-800 text-lg">{selected.nom}</p></div>
-                  <div><label className="font-semibold text-gray-600 block mb-1">Prénom</label><p className="text-gray-800 text-lg">{selected.prenom}</p></div>
-                  <div><label className="font-semibold text-gray-600 block mb-1">CIN</label><p className="text-gray-800 text-lg font-mono">{selected.cin}</p></div>
-                  <div><label className="font-semibold text-gray-600 block mb-1">Filière</label><p className="text-gray-800 text-lg">{selected.filiere}</p></div>
-                  <div>
-                    <label className="font-semibold text-gray-600 block mb-1">Statut Actuel</label>
-                    <span className="mt-1 px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
-                      ⏳ {selected.status}
+              {/* Content */}
+              <div className="p-6 space-y-6">
+                {/* Personal Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                    <label className="text-sm font-medium text-blue-700">CIN</label>
+                    <p className="text-gray-900 font-mono text-lg">{selected.cin}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                    <label className="text-sm font-medium text-purple-700">Filière</label>
+                    <p className="text-gray-900 text-lg font-semibold">{selected.filiere}</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+                    <label className="text-sm font-medium text-gray-700">Statut actuel</label>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-1 ${getStatusColor(selected.status)}`}>
+                      {selected.status}
                     </span>
                   </div>
                 </div>
 
-                {/* Section des résultats */}
-                {selected.resultat && selected.resultat.length > 0 ? (
-                  <div className="mb-6">
-                    <h4 className="text-xl font-bold text-gray-800 flex items-center mb-4">
-                      <span className="text-xl mr-2">📊</span>Résultats Académiques
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                      <div className="bg-gray-50 p-4 rounded-lg border"><label className="font-semibold text-gray-600 text-sm">Pratique</label><p className="text-2xl font-bold text-blue-600">{selected.resultat[0].scoreP}</p></div>
-                      <div className="bg-gray-50 p-4 rounded-lg border"><label className="font-semibold text-gray-600 text-sm">Théorique</label><p className="text-2xl font-bold text-blue-600">{selected.resultat[0].scoreT}</p></div>
-                      <div className="bg-gray-50 p-4 rounded-lg border"><label className="font-semibold text-gray-600 text-sm">Soft Skills</label><p className="text-2xl font-bold text-blue-600">{selected.resultat[0].scoreS}</p></div>
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200"><label className="font-semibold text-blue-800 text-sm">Total</label><p className="text-2xl font-bold text-blue-800">{selected.resultat[0].total}</p></div>
+                {/* Results */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    📊 Résultats d'Évaluation
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 text-center border border-blue-200 transform hover:scale-105 transition-all duration-200">
+                      <div className="text-2xl font-bold text-blue-600">{selected.resultat?.scoreP ?? "N/A"}</div>
+                      <div className="text-sm text-blue-800 font-medium">Pratique</div>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center border border-green-200 transform hover:scale-105 transition-all duration-200">
+                      <div className="text-2xl font-bold text-green-600">{selected.resultat?.scoreT ?? "N/A"}</div>
+                      <div className="text-sm text-green-800 font-medium">Théorique</div>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 text-center border border-purple-200 transform hover:scale-105 transition-all duration-200">
+                      <div className="text-2xl font-bold text-purple-600">{selected.resultat?.scoreS ?? "N/A"}</div>
+                      <div className="text-sm text-purple-800 font-medium">Soft Skills</div>
+                    </div>
+                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 text-center border border-amber-200 transform hover:scale-105 transition-all duration-200">
+                      <div className="text-2xl font-bold text-amber-600">{selected.resultat?.total ?? "N/A"}</div>
+                      <div className="text-sm text-amber-800 font-medium">Total</div>
                     </div>
                   </div>
-                ) : (
-                  <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <p className="text-yellow-800 flex items-center">
-                      <span className="mr-2">⚠️</span>
-                      Aucun résultat académique disponible pour cet étudiant
-                    </p>
-                  </div>
-                )}
+                </div>
 
-                {/* Section de modification du statut */}
+                {/* Actions */}
                 <div>
-                  <h4 className="text-xl font-bold text-gray-800 flex items-center mb-4">
-                    <span className="text-xl mr-2">⚙️</span>Modifier le Statut
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    ⚡ Actions Rapides
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <button 
                       onClick={() => handleStatusChange(selected.id_stu, "passed")} 
                       disabled={updating}
-                      className="flex justify-center items-center px-4 py-3 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:bg-green-300 transition-colors"
+                      className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 rounded-xl hover:from-green-700 hover:to-green-800 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-green-500/20"
                     >
-                      {updating ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      ) : (
-                        <>
-                          <span className="mr-2">✅</span>
-                          <div className="text-left">
-                            <div className="font-semibold">Accepté</div>
-                            <div className="text-xs opacity-90">Passer à accepté</div>
-                          </div>
-                        </>
-                      )}
+                      {updating ? "🔄" : "✅"} Accepté
                     </button>
-                    
                     <button 
                       onClick={() => handleStatusChange(selected.id_stu, "in_interview")} 
                       disabled={updating}
-                      className="flex justify-center items-center px-4 py-3 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-amber-300 transition-colors"
+                      className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-3 rounded-xl hover:from-amber-600 hover:to-amber-700 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-amber-500/20"
                     >
-                      {updating ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      ) : (
-                        <>
-                          <span className="mr-2">🕑</span>
-                          <div className="text-left">
-                            <div className="font-semibold">Entretien</div>
-                            <div className="text-xs opacity-90">Programmer entretien</div>
-                          </div>
-                        </>
-                      )}
+                      {updating ? "🔄" : "🎤"} Entretien
                     </button>
-                    
                     <button 
-                      onClick={() => handleStatusChange(selected.id_stu, "rejected")} 
+                      onClick={() => handleStatusChange(selected.id_stu, "registred")} 
                       disabled={updating}
-                      className="flex justify-center items-center px-4 py-3 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-red-300 transition-colors"
+                      className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-blue-500/20"
                     >
-                      {updating ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      ) : (
-                        <>
-                          <span className="mr-2">❌</span>
-                          <div className="text-left">
-                            <div className="font-semibold">Refusé</div>
-                            <div className="text-xs opacity-90">Refuser l'étudiant</div>
-                          </div>
-                        </>
-                      )}
+                      {updating ? "🔄" : "📝"} Registred
                     </button>
                   </div>
                 </div>
@@ -431,7 +446,39 @@ export default function WaitingStudents() {
             </div>
           </div>
         )}
+
+        {/* Alert Message */}
+        {message.text && (
+          <div className={`fixed top-4 right-4 p-4 rounded-xl shadow-lg border-l-4 transform animate-slideInRight ${
+            message.type === "error" 
+              ? "bg-red-50 border-red-500 text-red-700" 
+              : "bg-green-50 border-green-500 text-green-700"
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${message.type === "error" ? "bg-red-500" : "bg-green-500"}`}></div>
+              <span className="font-medium">{message.text}</span>
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* Custom Animations */}
+      <style jsx>{`
+        @keyframes scaleIn {
+          from { transform: scale(0.9); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.3s ease-out;
+        }
+        .animate-slideInRight {
+          animation: slideInRight 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
