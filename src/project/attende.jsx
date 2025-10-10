@@ -479,6 +479,7 @@ export default function WaitingStudents() {
           animation: slideInRight 0.3s ease-out;
         }
       `}</style>
+      
     </div>
   );
 }

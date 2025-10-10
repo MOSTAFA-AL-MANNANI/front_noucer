@@ -46,11 +46,11 @@ export default function Sidebar() {
       
       {/* Header de la sidebar */}
       <div className="flex items-center mb-8 pb-6 border-b border-blue-200 relative">
-        <div className="p-2 bg-gradient-to-r from-blue-600 to-amber-500 rounded-xl shadow-lg">
-          <img src="logo.png" alt="Logo" className="h-8 w-8 filter brightness-0 invert" />
+        <div className="p-2">
+          <img src="logo.png" alt="Logo" className="h-8 w-8" />
         </div>
         <div className={`${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300 ml-3`}>
-          <h6 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-amber-500 bg-clip-text text-transparent">
+          <h6 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-amber-500 bg-clip-text text-transparent">
             Nouaceur Wings<span className="text-amber-500">Tech</span>
           </h6>
         </div>
@@ -58,7 +58,7 @@ export default function Sidebar() {
         {/* Toggle Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-blue-600 to-amber-500 text-white p-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border-2 border-white"
+          className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-blue-700 to-blue-400 text-white p-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border-2 border-white"
         >
           {isCollapsed ? '→' : '←'}
         </button>
