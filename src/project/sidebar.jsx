@@ -3,7 +3,6 @@ import { logout } from "./logout";
 import { useState, useEffect } from "react";
 
 export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeSection, setActiveSection] = useState("");
 
   const navLinkClasses = "flex items-center justify-between px-4 py-3.5 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-amber-50 hover:text-blue-700 rounded-xl transition-all duration-300 group border border-transparent hover:border-blue-200 hover:shadow-md transform hover:scale-[1.02]";
@@ -42,32 +41,24 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <div className={`${isCollapsed ? 'w-20' : 'w-72'} h-screen bg-gradient-to-b from-white via-blue-50 to-amber-50 shadow-2xl flex flex-col p-4 sticky top-0 border-r border-blue-200 transition-all duration-500 ease-in-out overflow-hidden group`}>
+    <div className="w-72 h-screen bg-gradient-to-b from-white via-blue-50 to-amber-50 shadow-2xl flex flex-col p-4 sticky top-0 border-r border-blue-200 transition-all duration-500 ease-in-out overflow-hidden">
       
       {/* Header de la sidebar */}
       <div className="flex items-center mb-8 pb-6 border-b border-blue-200 relative">
         <div className="p-2">
           <img src="logo.png" alt="Logo" className="h-8 w-8" />
         </div>
-        <div className={`${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300 ml-3`}>
+        <div className="transition-all duration-300 ml-3">
           <h6 className="text-xl font-bold bg-gradient-to-r from-blue-800 to-amber-500 bg-clip-text text-transparent">
             Nouaceur Wings<span className="text-amber-500">Tech</span>
           </h6>
         </div>
-        
-        {/* Toggle Button */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-blue-700 to-blue-400 text-white p-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border-2 border-white"
-        >
-          {isCollapsed ? '→' : '←'}
-        </button>
       </div>
 
       {/* Navigation Links */}
       <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar">
         {/* Main Navigation */}
-        <div className={`${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300 mb-4`}>
+        <div className="transition-all duration-300 mb-4">
           <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/50 rounded-lg">
             Navigation
           </p>
@@ -85,7 +76,7 @@ export default function Sidebar() {
                 <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
                   <span className="text-lg">🎯</span>
                 </div>
-                <span className={`font-medium ${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+                <span className="font-medium transition-all duration-300">
                   Entretien
                 </span>
               </div>
@@ -108,7 +99,7 @@ export default function Sidebar() {
                 <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
                   <span className="text-lg">👥</span>
                 </div>
-                <span className={`font-medium ${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+                <span className="font-medium transition-all duration-300">
                   Gestion Étudiants
                 </span>
               </div>
@@ -131,7 +122,7 @@ export default function Sidebar() {
                 <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
                   <span className="text-lg">🏆</span>
                 </div>
-                <span className={`font-medium ${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+                <span className="font-medium transition-all duration-300">
                   Top Étudiants
                 </span>
               </div>
@@ -154,7 +145,7 @@ export default function Sidebar() {
                 <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
                   <span className="text-lg">⏳</span>
                 </div>
-                <span className={`font-medium ${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+                <span className="font-medium transition-all duration-300">
                   Étudiants en Attente
                 </span>
               </div>
@@ -166,7 +157,7 @@ export default function Sidebar() {
         </NavLink>
 
         {/* Quick Scroll Links */}
-        <div className={`${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300 mt-6 mb-4`}>
+        <div className="transition-all duration-300 mt-6 mb-4">
           <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/50 rounded-lg">
             Navigation Rapide
           </p>
@@ -187,7 +178,7 @@ export default function Sidebar() {
             }`}>
               <span className="text-lg">📊</span>
             </div>
-            <span className={`font-medium ${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+            <span className="font-medium transition-all duration-300">
               Tableau de Bord
             </span>
           </div>
@@ -210,7 +201,7 @@ export default function Sidebar() {
             }`}>
               <span className="text-lg">📈</span>
             </div>
-            <span className={`font-medium ${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+            <span className="font-medium transition-all duration-300">
               Statistiques
             </span>
           </div>
@@ -233,7 +224,7 @@ export default function Sidebar() {
             }`}>
               <span className="text-lg">📋</span>
             </div>
-            <span className={`font-medium ${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+            <span className="font-medium transition-all duration-300">
               Rapports
             </span>
           </div>
@@ -243,7 +234,7 @@ export default function Sidebar() {
         </button>
 
         {/* Additional Navigation Links */}
-        <div className={`${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300 mt-6 mb-4`}>
+        <div className="transition-all duration-300 mt-6 mb-4">
           <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/50 rounded-lg">
             Gestion
           </p>
@@ -273,7 +264,7 @@ export default function Sidebar() {
                   <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
                     <span className="text-lg">{item.icon}</span>
                   </div>
-                  <span className={`font-medium ${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+                  <span className="font-medium transition-all duration-300">
                     {item.label}
                   </span>
                 </div>
@@ -295,7 +286,7 @@ export default function Sidebar() {
           <svg className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
           </svg>
-          <span className={`${isCollapsed ? 'opacity-0 scale-0' : 'opacity-100 scale-100'} transition-all duration-300`}>
+          <span className="transition-all duration-300">
             Déconnexion
           </span>
         </button>
