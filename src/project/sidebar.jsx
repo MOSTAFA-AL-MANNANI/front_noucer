@@ -249,7 +249,8 @@ export default function Sidebar() {
           { to: "/absence", icon: "📅", label: "Absence" },
           { to: "/document", icon: "📄", label: "Document" },
           { to: "/section/student", icon: "👨‍🎓", label: "Sections Students" },
-          { to: "/absences/list", icon: "📝", label: "Liste Absence" }
+          { to: "/absences/list", icon: "📝", label: "Liste Absence" },
+          { to: "/student/execl", icon: "👨‍🎓", label: "Import Execl" }
         ].map((item) => (
           <NavLink 
             key={item.to}

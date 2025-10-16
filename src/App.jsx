@@ -20,6 +20,7 @@ import MarkAttendance from './project/MarkAttendance'
 import Document from './project/Document'
 import SectionsStudents from './project/getStuSec'
 import Absences from './project/absence'
+import ImportStudents from './project/ImportStudents'
 
 
 function App() {
@@ -130,17 +131,26 @@ function App() {
           </ProtectedRoute>
         } />
 
-                        <Route path="/section/student" element={
+        <Route path="/section/student" element={
           <ProtectedRoute>
             <div className="min-h-screen bg-gray-50" dir="ltr">
               <SectionsStudents />
             </div>
           </ProtectedRoute>
         } />
-                                <Route path="/absences/list" element={
+
+        <Route path="/absences/list" element={
           <ProtectedRoute>
             <div className="min-h-screen bg-gray-50" dir="ltr">
               <Absences />
+            </div>
+          </ProtectedRoute>
+        } />
+
+                <Route path="/student/execl" element={
+          <ProtectedRoute>
+            <div className="min-h-screen bg-gray-50" dir="ltr">
+              <ImportStudents />
             </div>
           </ProtectedRoute>
         } />
