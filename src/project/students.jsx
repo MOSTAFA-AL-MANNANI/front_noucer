@@ -5,6 +5,14 @@ import * as XLSX from "xlsx";
 
 export default function Students() {
   const [students, setStudents] = useState([]);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 30,
+    total: 0,
+    from: 0,
+    to: 0
+  });
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
@@ -31,13 +39,29 @@ export default function Students() {
     setTimeout(() => setAlert({ show: false, message: "", type: "" }), 4000);
   };
 
-  // Fetch all students
-  const fetchData = async () => {
+  // Fetch students avec pagination
+  const fetchData = async (page = 1) => {
     try {
       setLoading(true);
-      const res = await api.get("/students");
-      setStudents(res.data);
-      showAlert(`${res.data.length} étudiant(s) chargé(s) avec succès`, "success");
+      const res = await api.get(`/api/students?page=${page}`);
+      
+      // Si l'API retourne un objet de pagination Laravel
+      if (res.data.data) {
+        setStudents(res.data.data);
+        setPagination({
+          current_page: res.data.current_page,
+          last_page: res.data.last_page,
+          per_page: res.data.per_page,
+          total: res.data.total,
+          from: res.data.from,
+          to: res.data.to
+        });
+      } else {
+        // Si c'est un tableau simple (fallback)
+        setStudents(res.data);
+      }
+      
+      showAlert(`${res.data.total || res.data.length} étudiant(s) chargé(s) avec succès`, "success");
     } catch (error) {
       console.error("Erreur lors du chargement:", error);
       showAlert("Erreur lors du chargement des étudiants", "error");
@@ -49,6 +73,13 @@ export default function Students() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Gestion de la pagination
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.last_page) {
+      fetchData(newPage);
+    }
+  };
 
   // Ajouter / Modifier
   const handleSubmit = async (e) => {
@@ -63,7 +94,7 @@ export default function Students() {
         showAlert("Étudiant ajouté avec succès", "success");
       }
       resetForm();
-      fetchData();
+      fetchData(pagination.current_page); // Recharger la page actuelle
     } catch (error) {
       console.error("Erreur lors de l'opération:", error);
       showAlert("Erreur lors de l'opération", "error");
@@ -93,7 +124,7 @@ export default function Students() {
       try {
         await api.delete(`/students/${id}`);
         showAlert("Étudiant supprimé avec succès", "success");
-        fetchData();
+        fetchData(pagination.current_page); // Recharger la page actuelle
       } catch (error) {
         console.error("Erreur lors de la suppression:", error);
         showAlert("Erreur lors de la suppression", "error");
@@ -120,11 +151,15 @@ export default function Students() {
     showAlert(`Modification de ${s.nom} ${s.prenom}`, "info");
   };
 
-  // Export to Excel
-  const exportToExcel = () => {
+  // Export to Excel - Tous les étudiants
+  const exportToExcel = async () => {
     setExportLoading(true);
     try {
-      const dataToExport = filteredStudents.map(student => ({
+      // Récupérer tous les étudiants pour l'export
+      const res = await api.get("/api/students?all=true");
+      const allStudents = res.data.data || res.data;
+      
+      const dataToExport = allStudents.map(student => ({
         "Nom": student.nom,
         "Prénom": student.prenom,
         "CIN": student.cin,
@@ -154,7 +189,7 @@ export default function Students() {
     }
   };
 
-  // Filtrage avancé avec useMemo
+  // Filtrage avancé avec useMemo (sur les données de la page actuelle)
   const filteredStudents = useMemo(() => {
     if (!searchTerm.trim()) return students;
 
@@ -184,6 +219,8 @@ export default function Students() {
     });
   }, [students, searchTerm, searchField]);
 
+  // AJOUTEZ CES FONCTIONS MANQUANTES :
+
   const getStatusColor = (status) => {
     switch (status) {
       case "passed": return "bg-green-100 text-green-800 border border-green-200";
@@ -201,6 +238,18 @@ export default function Students() {
       default: return "bg-gray-100 text-gray-800 border border-gray-200";
     }
   };
+
+  // Fonction pour obtenir les statistiques (utilisée dans la section statistiques)
+  const getStatistics = () => {
+    return {
+      total: students.length,
+      enAttente: students.filter(s => s.status === "attende").length,
+      reussis: students.filter(s => s.status === "passed").length,
+      developpement: students.filter(s => s.filiere === "Développement web").length
+    };
+  };
+
+  const stats = getStatistics();
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -278,7 +327,7 @@ export default function Students() {
 
                 <button
                   onClick={exportToExcel}
-                  disabled={exportLoading || students.length === 0}
+                  disabled={exportLoading || pagination.total === 0}
                   className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-green-300 transition-colors"
                 >
                   {exportLoading ? (
@@ -416,7 +465,7 @@ export default function Students() {
                     />
                   </div>
 
-                    <div className="md:col-span-2">
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
                     <input
                       type="text"
@@ -486,25 +535,19 @@ export default function Students() {
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-center text-white shadow-lg">
-                <div className="text-2xl font-bold">{students.length}</div>
+                <div className="text-2xl font-bold">{stats.total}</div>
                 <div className="text-sm opacity-90">Total Étudiants</div>
               </div>
               <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-center text-white shadow-lg">
-                <div className="text-2xl font-bold">
-                  {students.filter(s => s.status === "attende").length}
-                </div>
+                <div className="text-2xl font-bold">{stats.enAttente}</div>
                 <div className="text-sm opacity-90">En attente</div>
               </div>
               <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-center text-white shadow-lg">
-                <div className="text-2xl font-bold">
-                  {students.filter(s => s.status === "passed").length}
-                </div>
+                <div className="text-2xl font-bold">{stats.reussis}</div>
                 <div className="text-sm opacity-90">Réussis</div>
               </div>
               <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-center text-white shadow-lg">
-                <div className="text-2xl font-bold">
-                  {students.filter(s => s.filiere === "développement web").length}
-                </div>
+                <div className="text-2xl font-bold">{stats.developpement}</div>
                 <div className="text-sm opacity-90">Développement</div>
               </div>
             </div>
@@ -534,13 +577,12 @@ export default function Students() {
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                 📋 Liste des Étudiants
                 <span className="ml-3 bg-white text-amber-600 text-sm px-3 py-1 rounded-full shadow-sm">
-                  {filteredStudents.length} étudiant(s)
-                  {searchTerm && ` sur ${students.length}`}
+                  {pagination.from}-{pagination.to} sur {pagination.total} étudiant(s)
                 </span>
               </h3>
               
               <div className="text-sm text-gray-700">
-                Filtre: <span className="font-semibold capitalize">{searchField}</span>
+                Page {pagination.current_page} sur {pagination.last_page}
               </div>
             </div>
           </div>
@@ -551,7 +593,7 @@ export default function Students() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 <span className="ml-3 text-gray-600">Chargement des étudiants...</span>
               </div>
-            ) : filteredStudents.length === 0 ? (
+            ) : students.length === 0 ? (
               <div className="text-center py-12">
                 <div className="flex justify-center mb-4">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
@@ -559,89 +601,148 @@ export default function Students() {
                   </div>
                 </div>
                 <p className="text-gray-600 font-medium text-lg mb-2">
-                  {searchTerm ? "Aucun étudiant trouvé" : "Aucun étudiant enregistré"}
+                  Aucun étudiant enregistré
                 </p>
                 <p className="text-gray-500 mb-4">
-                  {searchTerm ? "Essayez avec d'autres termes de recherche" : "Commencez par ajouter un étudiant"}
+                  Commencez par ajouter un étudiant
                 </p>
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Réinitialiser la recherche
-                  </button>
-                )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Étudiant</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filière</th>
-                      
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adresse</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredStudents.map((s) => (
-                      <tr key={s.id_stu} className="hover:bg-gray-50 transition duration-150">
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{s.nom} {s.prenom}</div>
-                            <div className="text-xs text-gray-500 font-mono mt-1">CIN: {s.cin || "Non renseigné"}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{s.numero}</div>
-                          <div className="text-xs text-gray-500 truncate max-w-[150px]">{s.gmail}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getFiliereColor(s.filiere)}`}>
-                            {s.filiere || "Non spécifiée"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(s.status)}`}>
-                            {s.status === "registred" ? "Inscrit" : 
-                             s.status === "attende" ? "En attente" : 
-                             s.status === "passed" ? "Réussi" : s.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full `}>
-                            {s.adresse || "Non Adresse renseignée"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex space-x-2">
-                            <button 
-                              onClick={() => handleEdit(s)}
-                              className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-md transition duration-200 flex items-center space-x-1 text-sm"
-                              title="Modifier"
-                            >
-                              <span>✏️</span>
-                              <span className="hidden lg:inline">Modifier</span>
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(s.id_stu)}
-                              className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-md transition duration-200 flex items-center space-x-1 text-sm"
-                              title="Supprimer"
-                            >
-                              <span>🗑️</span>
-                              <span className="hidden lg:inline">Supprimer</span>
-                            </button>
-                          </div>
-                        </td>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Étudiant</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filière</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adresse</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(searchTerm ? filteredStudents : students).map((s) => (
+                        <tr key={s.id_stu} className="hover:bg-gray-50 transition duration-150">
+                          <td className="px-6 py-4">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{s.nom} {s.prenom}</div>
+                              <div className="text-xs text-gray-500 font-mono mt-1">CIN: {s.cin || "Non renseigné"}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900">{s.numero}</div>
+                            <div className="text-xs text-gray-500 truncate max-w-[150px]">{s.gmail}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getFiliereColor(s.filiere)}`}>
+                              {s.filiere || "Non spécifiée"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(s.status)}`}>
+                              {s.status === "registred" ? "Inscrit" : 
+                               s.status === "attende" ? "En attente" : 
+                               s.status === "passed" ? "Réussi" : s.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-900">
+                              {s.adresse || "Non renseignée"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex space-x-2">
+                              <button 
+                                onClick={() => handleEdit(s)}
+                                className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-md transition duration-200 flex items-center space-x-1 text-sm"
+                                title="Modifier"
+                              >
+                                <span>✏️</span>
+                                <span className="hidden lg:inline">Modifier</span>
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(s.id_stu)}
+                                className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-md transition duration-200 flex items-center space-x-1 text-sm"
+                                title="Supprimer"
+                              >
+                                <span>🗑️</span>
+                                <span className="hidden lg:inline">Supprimer</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {!searchTerm && pagination.last_page > 1 && (
+                  <div className="flex items-center justify-between mt-6 px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+                    <div className="flex justify-between flex-1 sm:hidden">
+                      <button
+                        onClick={() => handlePageChange(pagination.current_page - 1)}
+                        disabled={pagination.current_page === 1}
+                        className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Précédent
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(pagination.current_page + 1)}
+                        disabled={pagination.current_page === pagination.last_page}
+                        className="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Suivant
+                      </button>
+                    </div>
+                    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm text-gray-700">
+                          Affichage de <span className="font-medium">{pagination.from}</span> à <span className="font-medium">{pagination.to}</span> sur{' '}
+                          <span className="font-medium">{pagination.total}</span> résultats
+                        </p>
+                      </div>
+                      <div>
+                        <nav className="inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                          <button
+                            onClick={() => handlePageChange(pagination.current_page - 1)}
+                            disabled={pagination.current_page === 1}
+                            className="relative inline-flex items-center px-2 py-2 text-gray-400 rounded-l-md border border-gray-300 bg-white text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span className="sr-only">Précédent</span>
+                            ‹
+                          </button>
+                          
+                          {/* Pages numbers */}
+                          {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map(page => (
+                            <button
+                              key={page}
+                              onClick={() => handlePageChange(page)}
+                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                page === pagination.current_page
+                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                          
+                          <button
+                            onClick={() => handlePageChange(pagination.current_page + 1)}
+                            disabled={pagination.current_page === pagination.last_page}
+                            className="relative inline-flex items-center px-2 py-2 text-gray-400 rounded-r-md border border-gray-300 bg-white text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span className="sr-only">Suivant</span>
+                            ›
+                          </button>
+                        </nav>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

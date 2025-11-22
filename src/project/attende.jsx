@@ -308,10 +308,6 @@ export default function WaitingStudents() {
                               <div className="font-bold text-green-600">{student.resultat?.scoreT ?? "N/A"}</div>
                               <div className="text-xs text-green-800">Théorique</div>
                             </div>
-                            <div className="text-center p-2 bg-purple-50 rounded-lg border border-purple-100">
-                              <div className="font-bold text-purple-600">{student.resultat?.scoreS ?? "N/A"}</div>
-                              <div className="text-xs text-purple-800">Soft Skills</div>
-                            </div>
                             <div className="text-center p-2 bg-amber-50 rounded-lg border border-amber-100">
                               <div className="font-bold text-amber-600">{student.resultat?.total ?? "N/A"}</div>
                               <div className="text-xs text-amber-800">Total</div>
@@ -401,10 +397,6 @@ export default function WaitingStudents() {
                     <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center border border-green-200 transform hover:scale-105 transition-all duration-200">
                       <div className="text-2xl font-bold text-green-600">{selected.resultat?.scoreT ?? "N/A"}</div>
                       <div className="text-sm text-green-800 font-medium">Théorique</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 text-center border border-purple-200 transform hover:scale-105 transition-all duration-200">
-                      <div className="text-2xl font-bold text-purple-600">{selected.resultat?.scoreS ?? "N/A"}</div>
-                      <div className="text-sm text-purple-800 font-medium">Soft Skills</div>
                     </div>
                     <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 text-center border border-amber-200 transform hover:scale-105 transition-all duration-200">
                       <div className="text-2xl font-bold text-amber-600">{selected.resultat?.total ?? "N/A"}</div>
