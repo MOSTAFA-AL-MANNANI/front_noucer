@@ -2,6 +2,34 @@ import React, { useEffect, useState, useMemo } from "react";
 import api from "./api";
 import Sidebar from "./sidebar";
 import * as XLSX from "xlsx";
+import Swal from 'sweetalert2';
+
+// Import FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faUsers,
+  faUserGraduate,
+  faClipboardList,
+  faSearch,
+  faFileExcel,
+  faChartBar,
+  faBook,
+  faIdCard,
+  faEnvelope,
+  faCog,
+  faCheckCircle,
+  faComments,
+  faEdit,
+  faTimes,
+  faEye,
+  faFilter,
+  faDownload,
+  faExclamationTriangle,
+  faInfoCircle,
+  faUserCircle,
+  faCalendarAlt,
+  faListAlt
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function WaitingStudents() {
   const [students, setStudents] = useState([]);
@@ -10,14 +38,19 @@ export default function WaitingStudents() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [message, setMessage] = useState({ text: "", type: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [searchField, setSearchField] = useState("all");
   const [exportLoading, setExportLoading] = useState(false);
 
-  const showAlert = (text, type = "success") => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage({ text: "", type: "" }), 4000);
+  const showAlert = (title, text, type = "success") => {
+    Swal.fire({
+      title,
+      text,
+      icon: type,
+      confirmButtonColor: '#3085d6',
+      timer: type === 'success' ? 3000 : undefined,
+      showConfirmButton: type !== 'success'
+    });
   };
 
   const fetchFilieres = async () => {
@@ -26,6 +59,7 @@ export default function WaitingStudents() {
       setFilieres(res.data);
     } catch (err) {
       console.error(err);
+      showAlert("Erreur", "Impossible de charger les filières", "error");
     }
   };
 
@@ -40,10 +74,10 @@ export default function WaitingStudents() {
         });
       });
       setStudents(allStudents);
-      showAlert(`${allStudents.length} étudiant(s) chargé(s)`, "success");
+      showAlert("Succès", `${allStudents.length} étudiant(s) chargé(s)`);
     } catch (err) {
       console.error(err);
-      showAlert("Erreur lors du chargement des étudiants", "error");
+      showAlert("Erreur", "Erreur lors du chargement des étudiants", "error");
     } finally {
       setLoading(false);
     }
@@ -55,23 +89,60 @@ export default function WaitingStudents() {
   }, []);
 
   const handleStatusChange = async (id, newStatus) => {
+    const statusNames = {
+      "passed": "Accepté",
+      "in_interview": "En entretien",
+      "registred": "Registré"
+    };
+
+    const result = await Swal.fire({
+      title: 'Confirmer la modification',
+      text: `Voulez-vous vraiment changer le statut en "${statusNames[newStatus]}" ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, modifier !',
+      cancelButtonText: 'Annuler'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       setUpdating(true);
       await api.put(`/students/status/en/${id}`, { status: newStatus });
-      showAlert("Statut mis à jour avec succès", "success");
+      showAlert("Succès", "Statut mis à jour avec succès");
       fetchWaiting();
       if (selected && selected.id_stu === id) {
         setSelected({ ...selected, status: newStatus });
       }
     } catch (err) {
       console.error(err);
-      showAlert("Erreur lors de la mise à jour du statut", "error");
+      showAlert("Erreur", "Erreur lors de la mise à jour du statut", "error");
     } finally {
       setUpdating(false);
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    if (filteredStudents.length === 0) {
+      showAlert("Aucune donnée", "Aucun étudiant à exporter", "warning");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Exporter en Excel ?',
+      text: `Voulez-vous exporter ${filteredStudents.length} étudiant(s) ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, exporter !',
+      cancelButtonText: 'Annuler'
+    });
+
+    if (!result.isConfirmed) return;
+
     setExportLoading(true);
     try {
       const dataToExport = filteredStudents.map(student => ({
@@ -91,10 +162,10 @@ export default function WaitingStudents() {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Étudiants en Attente");
       const date = new Date().toISOString().split('T')[0];
       XLSX.writeFile(workbook, `etudiants_attente_${date}.xlsx`);
-      showAlert(`Fichier Excel exporté (${dataToExport.length} étudiants)`, "success");
+      showAlert("Export réussi", `Fichier Excel exporté (${dataToExport.length} étudiants)`);
     } catch (error) {
       console.error(error);
-      showAlert("Erreur lors de l'export Excel", "error");
+      showAlert("Erreur", "Erreur lors de l'export Excel", "error");
     } finally {
       setExportLoading(false);
     }
@@ -131,6 +202,15 @@ export default function WaitingStudents() {
     }
   };
 
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "passed": return faCheckCircle;
+      case "in_interview": return faComments;
+      case "registred": return faEdit;
+      default: return faInfoCircle;
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <Sidebar />
@@ -142,17 +222,19 @@ export default function WaitingStudents() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
                 <div className="p-2 bg-blue-600 rounded-xl text-white">
-                  📋
+                  <FontAwesomeIcon icon={faClipboardList} />
                 </div>
                 Étudiants en Attente
               </h1>
-              <p className="text-gray-600 text-sm md:text-base">
+              <p className="text-gray-600 text-sm md:text-base flex items-center gap-2">
+                <FontAwesomeIcon icon={faChartBar} className="text-blue-500" />
                 Gérez les candidatures en attente de décision
               </p>
             </div>
             <div className="flex items-center gap-3 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <FontAwesomeIcon icon={faUsers} />
                 {filteredStudents.length} étudiant(s)
               </span>
             </div>
@@ -164,24 +246,26 @@ export default function WaitingStudents() {
           <div className="flex flex-wrap gap-2">
             <button 
               onClick={() => setActiveFiliere("all")}
-              className={`px-4 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+              className={`px-4 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 ${
                 activeFiliere === "all" 
                   ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30" 
                   : "bg-white text-gray-700 border border-gray-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50"
               }`}
             >
-              👥 Tous
+              <FontAwesomeIcon icon={faUsers} />
+              Tous
             </button>
             {filieres.map(f => (
               <button
                 key={f}
                 onClick={() => setActiveFiliere(f)}
-                className={`px-4 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                className={`px-4 py-3 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 ${
                   activeFiliere === f
                     ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30"
                     : "bg-white text-gray-700 border border-gray-300 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50"
                 }`}
               >
+                <FontAwesomeIcon icon={faBook} />
                 {f}
               </button>
             ))}
@@ -195,22 +279,42 @@ export default function WaitingStudents() {
               <select 
                 value={searchField} 
                 onChange={e => setSearchField(e.target.value)}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all duration-200 bg-white"
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all duration-200 bg-white flex items-center gap-2"
               >
-                <option value="all">🔍 Tous les champs</option>
-                <option value="nom">👤 Nom</option>
-                <option value="prenom">👤 Prénom</option>
-                <option value="cin">🆔 CIN</option>
-                <option value="filiere">🎓 Filière</option>
+                <option value="all">
+                  <FontAwesomeIcon icon={faSearch} />
+                  Tous les champs
+                </option>
+                <option value="nom">
+                  <FontAwesomeIcon icon={faUserCircle} />
+                  Nom
+                </option>
+                <option value="prenom">
+                  <FontAwesomeIcon icon={faUserCircle} />
+                  Prénom
+                </option>
+                <option value="cin">
+                  <FontAwesomeIcon icon={faIdCard} />
+                  CIN
+                </option>
+                <option value="filiere">
+                  <FontAwesomeIcon icon={faBook} />
+                  Filière
+                </option>
               </select>
               
-              <input 
-                type="text" 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-                placeholder={`Rechercher par ${searchField === 'all' ? 'tous les champs' : searchField}`}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all duration-200 flex-1 bg-white"
-              />
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FontAwesomeIcon icon={faSearch} className="text-gray-400" />
+                </div>
+                <input 
+                  type="text" 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)} 
+                  placeholder={`Rechercher par ${searchField === 'all' ? 'tous les champs' : searchField}`}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all duration-200 bg-white"
+                />
+              </div>
             </div>
             
             <button 
@@ -225,7 +329,8 @@ export default function WaitingStudents() {
                 </>
               ) : (
                 <>
-                  📊 Export Excel
+                  <FontAwesomeIcon icon={faFileExcel} />
+                  Export Excel
                 </>
               )}
             </button>
@@ -237,7 +342,10 @@ export default function WaitingStudents() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-              <p className="text-gray-600 animate-pulse">Chargement des étudiants...</p>
+              <p className="text-gray-600 animate-pulse flex items-center gap-2">
+                <FontAwesomeIcon icon={faCog} className="animate-spin" />
+                Chargement des étudiants...
+              </p>
             </div>
           ) : (
             <>
@@ -246,21 +354,27 @@ export default function WaitingStudents() {
                   <thead className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        <FontAwesomeIcon icon={faUserGraduate} className="mr-2" />
                         Étudiant
                       </th>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        <FontAwesomeIcon icon={faIdCard} className="mr-2" />
                         CIN
                       </th>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        <FontAwesomeIcon icon={faBook} className="mr-2" />
                         Filière
                       </th>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        <FontAwesomeIcon icon={faListAlt} className="mr-2" />
                         Statut
                       </th>
                       <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        <FontAwesomeIcon icon={faChartBar} className="mr-2" />
                         Scores
                       </th>
                       <th className="px-4 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
                         Actions
                       </th>
                     </tr>
@@ -274,7 +388,7 @@ export default function WaitingStudents() {
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-200 transition-colors">
-                              👤
+                              <FontAwesomeIcon icon={faUserCircle} />
                             </div>
                             <div>
                               <div className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
@@ -284,17 +398,20 @@ export default function WaitingStudents() {
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <code className="px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-mono border border-gray-200">
+                          <code className="px-3 py-1 bg-gray-100 text-gray-800 rounded-lg text-sm font-mono border border-gray-200 flex items-center gap-2 w-fit">
+                            <FontAwesomeIcon icon={faIdCard} className="text-gray-500" />
                             {student.cin}
                           </code>
                         </td>
                         <td className="px-4 py-4">
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                            <FontAwesomeIcon icon={faBook} className="mr-1" />
                             {student.filiere}
                           </span>
                         </td>
                         <td className="px-4 py-4">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(student.status)}`}>
+                            <FontAwesomeIcon icon={getStatusIcon(student.status)} className="mr-1" />
                             {student.status}
                           </span>
                         </td>
@@ -319,7 +436,8 @@ export default function WaitingStudents() {
                             onClick={() => setSelected(student)}
                             className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-500/30 font-medium"
                           >
-                            📋 Détails
+                            <FontAwesomeIcon icon={faEye} className="mr-2" />
+                            Détails
                           </button>
                         </td>
                       </tr>
@@ -331,7 +449,9 @@ export default function WaitingStudents() {
               {/* Empty State */}
               {filteredStudents.length === 0 && !loading && (
                 <div className="text-center py-12">
-                  <div className="text-gray-400 text-6xl mb-4">📭</div>
+                  <div className="text-gray-400 text-4xl mb-4">
+                    <FontAwesomeIcon icon={faUsers} />
+                  </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     Aucun étudiant trouvé
                   </h3>
@@ -351,16 +471,20 @@ export default function WaitingStudents() {
               {/* Header */}
               <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl">
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">
+                  <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faUserGraduate} />
                     {selected.nom} {selected.prenom}
                   </h3>
-                  <p className="text-gray-600 mt-1">Détails de l'étudiant</p>
+                  <p className="text-gray-600 mt-1 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faInfoCircle} />
+                    Détails de l'étudiant
+                  </p>
                 </div>
                 <button 
                   onClick={() => setSelected(null)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl p-2 hover:bg-gray-100 rounded-lg transition-all duration-200 transform hover:rotate-90"
+                  className="text-gray-400 hover:text-gray-600 text-xl p-2 hover:bg-gray-100 rounded-lg transition-all duration-200 transform hover:rotate-90"
                 >
-                  ✕
+                  <FontAwesomeIcon icon={faTimes} />
                 </button>
               </div>
 
@@ -369,16 +493,26 @@ export default function WaitingStudents() {
                 {/* Personal Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
-                    <label className="text-sm font-medium text-blue-700">CIN</label>
+                    <label className="text-sm font-medium text-blue-700 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faIdCard} />
+                      CIN
+                    </label>
                     <p className="text-gray-900 font-mono text-lg">{selected.cin}</p>
                   </div>
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
-                    <label className="text-sm font-medium text-purple-700">Filière</label>
+                    <label className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faBook} />
+                      Filière
+                    </label>
                     <p className="text-gray-900 text-lg font-semibold">{selected.filiere}</p>
                   </div>
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
-                    <label className="text-sm font-medium text-gray-700">Statut actuel</label>
+                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faListAlt} />
+                      Statut actuel
+                    </label>
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-1 ${getStatusColor(selected.status)}`}>
+                      <FontAwesomeIcon icon={getStatusIcon(selected.status)} className="mr-1" />
                       {selected.status}
                     </span>
                   </div>
@@ -387,7 +521,8 @@ export default function WaitingStudents() {
                 {/* Results */}
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    📊 Résultats d'Évaluation
+                    <FontAwesomeIcon icon={faChartBar} />
+                    Résultats d'Évaluation
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 text-center border border-blue-200 transform hover:scale-105 transition-all duration-200">
@@ -408,7 +543,8 @@ export default function WaitingStudents() {
                 {/* Actions */}
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    ⚡ Actions Rapides
+                    <FontAwesomeIcon icon={faCog} />
+                    Actions Rapides
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <button 
@@ -416,21 +552,36 @@ export default function WaitingStudents() {
                       disabled={updating}
                       className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 rounded-xl hover:from-green-700 hover:to-green-800 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-green-500/20"
                     >
-                      {updating ? "🔄" : "✅"} Accepté
+                      {updating ? (
+                        <FontAwesomeIcon icon={faCog} className="animate-spin" />
+                      ) : (
+                        <FontAwesomeIcon icon={faCheckCircle} />
+                      )}
+                      Accepté
                     </button>
                     <button 
                       onClick={() => handleStatusChange(selected.id_stu, "in_interview")} 
                       disabled={updating}
                       className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-3 rounded-xl hover:from-amber-600 hover:to-amber-700 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-amber-500/20"
                     >
-                      {updating ? "🔄" : "🎤"} Entretien
+                      {updating ? (
+                        <FontAwesomeIcon icon={faCog} className="animate-spin" />
+                      ) : (
+                        <FontAwesomeIcon icon={faComments} />
+                      )}
+                      Entretien
                     </button>
                     <button 
                       onClick={() => handleStatusChange(selected.id_stu, "registred")} 
                       disabled={updating}
                       className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 font-medium shadow-lg shadow-blue-500/20"
                     >
-                      {updating ? "🔄" : "📝"} Registred
+                      {updating ? (
+                        <FontAwesomeIcon icon={faCog} className="animate-spin" />
+                      ) : (
+                        <FontAwesomeIcon icon={faEdit} />
+                      )}
+                      Registred
                     </button>
                   </div>
                 </div>
@@ -439,39 +590,17 @@ export default function WaitingStudents() {
           </div>
         )}
 
-        {/* Alert Message */}
-        {message.text && (
-          <div className={`fixed top-4 right-4 p-4 rounded-xl shadow-lg border-l-4 transform animate-slideInRight ${
-            message.type === "error" 
-              ? "bg-red-50 border-red-500 text-red-700" 
-              : "bg-green-50 border-green-500 text-green-700"
-          }`}>
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${message.type === "error" ? "bg-red-500" : "bg-green-500"}`}></div>
-              <span className="font-medium">{message.text}</span>
-            </div>
-          </div>
-        )}
+        {/* Custom Animations */}
+        <style jsx>{`
+          @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+          }
+          .animate-scaleIn {
+            animation: scaleIn 0.3s ease-out;
+          }
+        `}</style>
       </main>
-
-      {/* Custom Animations */}
-      <style jsx>{`
-        @keyframes scaleIn {
-          from { transform: scale(0.9); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        @keyframes slideInRight {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        .animate-scaleIn {
-          animation: scaleIn 0.3s ease-out;
-        }
-        .animate-slideInRight {
-          animation: slideInRight 0.3s ease-out;
-        }
-      `}</style>
-      
     </div>
   );
 }

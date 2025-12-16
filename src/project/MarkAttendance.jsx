@@ -2,6 +2,32 @@ import React, { useEffect, useState } from "react";
 import api from "./api";
 import Sidebar from "./sidebar";
 import * as XLSX from "xlsx";
+import Swal from 'sweetalert2';
+
+// Import FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faCalendarAlt,
+  faUsers,
+  faChartBar,
+  faFileExcel,
+  faSave,
+  faDownload,
+  faSpinner,
+  faCheckCircle,
+  faTimesCircle,
+  faUserGraduate,
+  faIdCard,
+  faExclamationTriangle,
+  faClipboardCheck,
+  faBook,
+  faFilter,
+  faCalendarCheck,
+  faUserCheck,
+  faUserSlash,
+  faInfoCircle,
+  faUniversity
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function MarkAttendance() {
   const [sections, setSections] = useState([]);
@@ -9,9 +35,19 @@ export default function MarkAttendance() {
   const [students, setStudents] = useState([]);
   const [attendanceData, setAttendanceData] = useState({});
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [sectionLoading, setSectionLoading] = useState(false);
+
+  // Fonction pour afficher les alertes SweetAlert2
+  const showAlert = (title, text, type = "success") => {
+    Swal.fire({
+      title,
+      text,
+      icon: type,
+      confirmButtonColor: '#3085d6',
+      confirmButtonText: 'OK'
+    });
+  };
 
   // Charger les sections au chargement de la page
   useEffect(() => {
@@ -19,9 +55,19 @@ export default function MarkAttendance() {
       try {
         const res = await api.get("/sections");
         setSections(res.data.data || res.data);
+        
+        Swal.fire({
+          title: 'Chargement réussi',
+          text: `${res.data.data?.length || res.data.length} section(s) chargée(s)`,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
       } catch (err) {
         console.error("Erreur chargement sections:", err);
-        setMessage("❌ Erreur lors du chargement des sections");
+        showAlert("Erreur", "Erreur lors du chargement des sections", "error");
       }
     };
     fetchSections();
@@ -34,7 +80,6 @@ export default function MarkAttendance() {
     setSelectedSection(sectionId);
     setStudents([]);
     setAttendanceData({});
-    setMessage("");
     setSectionLoading(true);
 
     try {
@@ -69,6 +114,16 @@ export default function MarkAttendance() {
         });
         
         setAttendanceData(initialAttendance);
+        
+        Swal.fire({
+          title: 'Données chargées',
+          text: `${studentsData.length} étudiant(s) trouvé(s) - Présences chargées`,
+          icon: 'info',
+          timer: 1500,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
       } catch (attendanceErr) {
         const initialAttendance = {};
         studentsData.forEach((student) => {
@@ -78,10 +133,20 @@ export default function MarkAttendance() {
           };
         });
         setAttendanceData(initialAttendance);
+        
+        Swal.fire({
+          title: 'Nouvelle feuille',
+          text: 'Nouvelle feuille de présence créée',
+          icon: 'info',
+          timer: 1500,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
       }
     } catch (err) {
       console.error("Erreur chargement données:", err);
-      setMessage("❌ Erreur lors du chargement des données");
+      showAlert("Erreur", "Erreur lors du chargement des données", "error");
     } finally {
       setSectionLoading(false);
     }
@@ -121,14 +186,27 @@ export default function MarkAttendance() {
   // Soumettre les données de présence
   const submitAttendance = async () => {
     if (!selectedSection) {
-      setMessage("⚠️ Veuillez sélectionner une section");
+      showAlert("Attention", "Veuillez sélectionner une section", "warning");
       return;
     }
 
     if (students.length === 0) {
-      setMessage("⚠️ Aucun étudiant trouvé dans cette section");
+      showAlert("Attention", "Aucun étudiant trouvé dans cette section", "warning");
       return;
     }
+
+    const result = await Swal.fire({
+      title: 'Confirmer l\'enregistrement',
+      html: `Voulez-vous enregistrer les présences pour <strong>${students.length} étudiant(s)</strong> ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, enregistrer !',
+      cancelButtonText: 'Annuler'
+    });
+
+    if (!result.isConfirmed) return;
 
     setLoading(true);
     try {
@@ -152,23 +230,24 @@ export default function MarkAttendance() {
       });
       
       if (response.data.success) {
-        setMessage(`✅ ${response.data.message || 'Présences enregistrées avec succès'}`);
+        await Swal.fire({
+          title: 'Succès !',
+          text: response.data.message || 'Présences enregistrées avec succès',
+          icon: 'success',
+          confirmButtonColor: '#3085d6'
+        });
       } else {
-        setMessage(`❌ ${response.data.message || 'Erreur lors de l\'enregistrement'}`);
+        showAlert("Erreur", response.data.message || 'Erreur lors de l\'enregistrement', "error");
       }
-      
-      setTimeout(() => {
-        setMessage("");
-      }, 5000);
     } catch (err) {
       console.error("Erreur soumission présence:", err);
       if (err.response?.data?.errors) {
         const validationErrors = Object.values(err.response.data.errors).flat();
-        setMessage(`❌ ${validationErrors.join(', ')}`);
+        showAlert("Erreur de validation", validationErrors.join(', '), "error");
       } else if (err.response?.data?.message) {
-        setMessage(`❌ ${err.response.data.message}`);
+        showAlert("Erreur", err.response.data.message, "error");
       } else {
-        setMessage("❌ Erreur lors de l'enregistrement des présences");
+        showAlert("Erreur", "Erreur lors de l'enregistrement des présences", "error");
       }
     } finally {
       setLoading(false);
@@ -178,36 +257,56 @@ export default function MarkAttendance() {
   // Exporter vers Excel
   const exportToExcel = () => {
     if (students.length === 0) {
-      setMessage("⚠️ Aucune donnée à exporter");
+      showAlert("Aucune donnée", "Aucune donnée à exporter", "warning");
       return;
     }
 
-    const excelData = students.map((student) => {
-      const studentId = student.id_stu;
-      const isPresent = attendanceData[studentId]?.present;
-      const status = isPresent ? "Présent" : "Absent";
-      const reason = attendanceData[studentId]?.reason || "";
-      
-      return {
-        "ID Étudiant": studentId,
-        "Nom": student.nom,
-        "Prénom": student.prenom,
-        "Statut": status,
-        "Raison d'absence": reason,
-        "Date": date,
-        "Section": sections.find(s => s.id == selectedSection)?.name || ""
-      };
+    Swal.fire({
+      title: 'Exporter en Excel ?',
+      text: `Voulez-vous exporter les présences de ${students.length} étudiant(s) ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, exporter !',
+      cancelButtonText: 'Annuler'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const excelData = students.map((student) => {
+          const studentId = student.id_stu;
+          const isPresent = attendanceData[studentId]?.present;
+          const status = isPresent ? "Présent" : "Absent";
+          const reason = attendanceData[studentId]?.reason || "";
+          
+          return {
+            "ID Étudiant": studentId,
+            "Nom": student.nom,
+            "Prénom": student.prenom,
+            "Statut": status,
+            "Raison d'absence": reason,
+            "Date": date,
+            "Section": sections.find(s => s.id == selectedSection)?.name || ""
+          };
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        XLSX.utils.book_append_sheet(wb, ws, "Présences");
+
+        const fileName = `presences_${sections.find(s => s.id == selectedSection)?.name || 'section'}_${date}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+
+        Swal.fire({
+          title: 'Export réussi !',
+          text: 'Fichier Excel généré avec succès',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
+      }
     });
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(excelData);
-    XLSX.utils.book_append_sheet(wb, ws, "Présences");
-
-    const fileName = `presences_${sections.find(s => s.id == selectedSection)?.name || 'section'}_${date}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-
-    setMessage("✅ Fichier Excel généré avec succès");
-    setTimeout(() => setMessage(""), 3000);
   };
 
   // Statistiques de présence
@@ -237,18 +336,21 @@ export default function MarkAttendance() {
           <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 rounded-3xl p-8 mb-8 text-white shadow-2xl shadow-blue-500/25 border border-blue-300">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent flex items-center gap-3">
+                  <FontAwesomeIcon icon={faClipboardCheck} />
                   Gestion des Présences
                 </h1>
-                <p className="text-blue-100 text-lg font-medium">
+                <p className="text-blue-100 text-lg font-medium flex items-center gap-2">
+                  <FontAwesomeIcon icon={faCalendarCheck} />
                   Enregistrement et gestion de la présence des étudiants
                 </p>
               </div>
 
               {/* Sélecteur de Date */}
               <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
-                <label className="block text-white font-semibold mb-3">
-                  📅 Date de Présence
+                <label className="block text-white font-semibold mb-3 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faCalendarAlt} />
+                  Date de Présence
                 </label>
                 <input
                   type="date"
@@ -265,10 +367,12 @@ export default function MarkAttendance() {
             {/* Sélecteur de Section */}
             <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden backdrop-blur-sm transform transition-all duration-300 hover:shadow-2xl">
               <div className="bg-gradient-to-r from-gray-50 to-blue-50/50 p-8 border-b border-gray-200/60">
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                  🎯 Sélectionner une Section
+                <h3 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faFilter} />
+                  Sélectionner une Section
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faInfoCircle} />
                   Choisissez une section pour gérer les présences
                 </p>
               </div>
@@ -294,13 +398,14 @@ export default function MarkAttendance() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <span className="text-xl">📊</span>
+                    <FontAwesomeIcon icon={faChartBar} className="text-xl text-white" />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold">
                       Statistiques
                     </h2>
-                    <p className="text-amber-100">
+                    <p className="text-amber-100 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faUsers} />
                       {students.length} étudiant{students.length !== 1 ? 's' : ''} au total
                     </p>
                   </div>
@@ -309,11 +414,17 @@ export default function MarkAttendance() {
               
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur-sm border border-white/30">
-                  <div className="text-2xl font-bold text-white">{presentCount}</div>
+                  <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                    <FontAwesomeIcon icon={faUserCheck} />
+                    {presentCount}
+                  </div>
                   <div className="text-amber-100 text-sm font-medium">Présents</div>
                 </div>
                 <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur-sm border border-white/30">
-                  <div className="text-2xl font-bold text-white">{absentCount}</div>
+                  <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                    <FontAwesomeIcon icon={faUserSlash} />
+                    {absentCount}
+                  </div>
                   <div className="text-amber-100 text-sm font-medium">Absents</div>
                 </div>
               </div>
@@ -324,8 +435,11 @@ export default function MarkAttendance() {
           {sectionLoading && (
             <div className="flex justify-center items-center py-12">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600 font-medium text-lg">Chargement des étudiants...</p>
+                <FontAwesomeIcon icon={faSpinner} className="animate-spin h-16 w-16 text-blue-600 mx-auto mb-4" />
+                <p className="text-gray-600 font-medium text-lg flex items-center gap-2">
+                  <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                  Chargement des étudiants...
+                </p>
               </div>
             </div>
           )}
@@ -339,13 +453,14 @@ export default function MarkAttendance() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                      <span className="text-2xl">👥</span>
+                      <FontAwesomeIcon icon={faUserGraduate} className="text-2xl text-white" />
                     </div>
                     <div>
                       <h2 className="text-3xl font-bold text-white">
                         Liste des Étudiants
                       </h2>
-                      <p className="text-blue-100">
+                      <p className="text-blue-100 flex items-center gap-2">
+                        <FontAwesomeIcon icon={faBook} />
                         {students.length} étudiant{students.length !== 1 ? 's' : ''} - Section {sections.find(s => s.id == selectedSection)?.name}
                       </p>
                     </div>
@@ -355,7 +470,7 @@ export default function MarkAttendance() {
                     onClick={exportToExcel}
                     className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 border-2 border-green-400 flex items-center gap-2"
                   >
-                    <span>📊</span>
+                    <FontAwesomeIcon icon={faFileExcel} />
                     Exporter Excel
                   </button>
                 </div>
@@ -384,13 +499,14 @@ export default function MarkAttendance() {
                                 ? "bg-gradient-to-r from-green-500 to-green-600"
                                 : "bg-gradient-to-r from-red-500 to-red-600"
                             }`}>
-                              {student.nom.charAt(0)}{student.prenom.charAt(0)}
+                              <FontAwesomeIcon icon={faUserGraduate} />
                             </div>
                             <div>
                               <h3 className="text-lg font-bold text-gray-800">
                                 {student.nom} {student.prenom}
                               </h3>
-                              <p className="text-sm text-gray-600 font-mono">
+                              <p className="text-sm text-gray-600 font-mono flex items-center gap-2">
+                                <FontAwesomeIcon icon={faIdCard} />
                                 ID: {studentId}
                               </p>
                             </div>
@@ -399,20 +515,31 @@ export default function MarkAttendance() {
                           {/* Bouton de Statut */}
                           <button
                             onClick={() => toggleStudentAttendance(studentId)}
-                            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-110 ${
+                            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-110 flex items-center gap-2 ${
                               isPresent
                                 ? "bg-green-500 text-white hover:bg-green-600 shadow-md"
                                 : "bg-red-500 text-white hover:bg-red-600 shadow-md"
                             }`}
                           >
-                            {isPresent ? "✅ Présent" : "❌ Absent"}
+                            {isPresent ? (
+                              <>
+                                <FontAwesomeIcon icon={faCheckCircle} />
+                                Présent
+                              </>
+                            ) : (
+                              <>
+                                <FontAwesomeIcon icon={faTimesCircle} />
+                                Absent
+                              </>
+                            )}
                           </button>
                         </div>
 
                         {/* Champ Raison d'Absence */}
                         {!isPresent && (
                           <div className="mt-4">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                              <FontAwesomeIcon icon={faExclamationTriangle} />
                               Raison de l'absence
                             </label>
                             <input
@@ -445,12 +572,12 @@ export default function MarkAttendance() {
                 >
                   {loading ? (
                     <>
-                      <div className="w-6 h-6 border-2 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+                      <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
                       <span>Enregistrement...</span>
                     </>
                   ) : (
                     <>
-                      <span>💾</span>
+                      <FontAwesomeIcon icon={faSave} />
                       <span>Enregistrer les Présences</span>
                     </>
                   )}
@@ -460,22 +587,9 @@ export default function MarkAttendance() {
                   onClick={exportToExcel}
                   className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-5 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg flex items-center justify-center gap-3 text-lg"
                 >
-                  <span>📥</span>
+                  <FontAwesomeIcon icon={faDownload} />
                   <span>Exporter Excel</span>
                 </button>
-              </div>
-            )}
-
-            {/* Message de Statut */}
-            {message && (
-              <div className={`flex-1 w-full p-4 rounded-xl font-semibold text-center transition-all duration-300 ${
-                message.includes("✅") || message.includes("succès")
-                  ? "bg-green-100 text-green-800 border-2 border-green-200"
-                  : message.includes("❌") || message.includes("Erreur")
-                  ? "bg-red-100 text-red-800 border-2 border-red-200"
-                  : "bg-blue-100 text-blue-800 border-2 border-blue-200"
-              }`}>
-                {message}
               </div>
             )}
           </div>
@@ -485,9 +599,7 @@ export default function MarkAttendance() {
             <div className="text-center py-16">
               <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-md mx-auto border border-gray-100 transform transition-all duration-300 hover:shadow-2xl">
                 <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
-                  <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
+                  <FontAwesomeIcon icon={faUniversity} className="w-12 h-12 text-blue-500" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-3">
                   Sélectionnez une Section

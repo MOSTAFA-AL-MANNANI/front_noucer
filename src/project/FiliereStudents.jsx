@@ -2,6 +2,33 @@ import React, { useEffect, useState } from "react";
 import api from "./api";
 import Sidebar from "./sidebar";
 import * as XLSX from "xlsx";
+import Swal from 'sweetalert2';
+
+// Import FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faTrophy,
+  faGraduationCap,
+  faUsers,
+  faFileExcel,
+  faCheckCircle,
+  faEye,
+  faTimes,
+  faSpinner,
+  faChartBar,
+  faUserGraduate,
+  faIdCard,
+  faCog,
+  faListOl,
+  faDownload,
+  faClipboardList,
+  faMedal,
+  faCrown,
+  faAward,
+  faStar,
+  faInfoCircle,
+  faExclamationTriangle
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function FiliereStudents() {
   const [filieres, setFilieres] = useState([]);
@@ -10,6 +37,17 @@ export default function FiliereStudents() {
   const [loading, setLoading] = useState(false);
   const [filiereLoading, setFiliereLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // Fonction pour afficher les alertes SweetAlert2
+  const showAlert = (title, text, type = "success") => {
+    Swal.fire({
+      title,
+      text,
+      icon: type,
+      confirmButtonColor: '#3085d6',
+      confirmButtonText: 'OK'
+    });
+  };
 
   // Récupérer les filières depuis l'API
   useEffect(() => {
@@ -24,6 +62,7 @@ export default function FiliereStudents() {
       .catch((err) => {
         console.error("Erreur API filières:", err);
         setFilieres([]);
+        showAlert("Erreur", "Erreur lors du chargement des filières", "error");
       })
       .finally(() => setFiliereLoading(false));
   }, []);
@@ -39,34 +78,71 @@ export default function FiliereStudents() {
     api.get(`/top-students/${activeFiliere.name}`)
       .then((res) => {
         setStudents(res.data);
+        
+        Swal.fire({
+          title: 'Classement chargé',
+          text: `${res.data.length} étudiant(s) trouvé(s) pour ${activeFiliere.name}`,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
       })
       .catch((err) => {
         console.error("Erreur API:", err);
         setStudents([]);
+        showAlert("Erreur", "Erreur lors du chargement des étudiants", "error");
       })
       .finally(() => setLoading(false));
   }, [activeFiliere]);
 
   // Export Excel
   const exportToExcel = () => {
-    if (!students.length) return;
+    if (!students.length) {
+      showAlert("Aucune donnée", "Aucun étudiant à exporter", "warning");
+      return;
+    }
 
-    const worksheet = XLSX.utils.json_to_sheet(students.map((student, index) => ({
-      "Rang": index + 1,
-      "Nom": student.nom,
-      "Prénom": student.prenom,
-      "CIN": student.cin,
-      "Score Pratique": student.scoreP,
-      "Score Théorique": student.scoreT,
-      "Score Soft Skills": student.scoreS,
-      "Total": student.total,
-      "Filière": activeFiliere.name
-    })));
+    Swal.fire({
+      title: 'Exporter en Excel ?',
+      text: `Voulez-vous exporter ${students.length} étudiant(s) ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, exporter !',
+      cancelButtonText: 'Annuler'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const worksheet = XLSX.utils.json_to_sheet(students.map((student, index) => ({
+          "Rang": index + 1,
+          "Nom": student.nom,
+          "Prénom": student.prenom,
+          "CIN": student.cin,
+          "Score Pratique": student.scoreP,
+          "Score Théorique": student.scoreT,
+          "Score Soft Skills": student.scoreS,
+          "Total": student.total,
+          "Filière": activeFiliere.name
+        })));
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Étudiants");
-    
-    XLSX.writeFile(workbook, `etudiants-${activeFiliere.name.replace(/\s+/g, '-')}.xlsx`);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Étudiants");
+        
+        XLSX.writeFile(workbook, `etudiants-${activeFiliere.name.replace(/\s+/g, '-')}.xlsx`);
+        
+        Swal.fire({
+          title: 'Export réussi !',
+          text: `Fichier Excel généré avec ${students.length} étudiant(s)`,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
+      }
+    });
   };
 
   // Détails étudiant
@@ -75,12 +151,29 @@ export default function FiliereStudents() {
 
   // Passer top 30
   const passTopStudents = async (filiere) => {
-    if (!window.confirm("Voulez-vous vraiment passer tous les top 30 étudiants ?")) return;
+    const result = await Swal.fire({
+      title: 'Confirmer la mise à jour',
+      html: `Voulez-vous vraiment passer <strong>tous les top 30 étudiants</strong> de la filière ${filiere} ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, mettre à jour !',
+      cancelButtonText: 'Annuler'
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       const res = await api.post(`/students/${filiere}/pass-top`);
       if (res.data.success) {
-        alert(res.data.message);
+        await Swal.fire({
+          title: 'Mise à jour réussie !',
+          text: res.data.message,
+          icon: 'success',
+          confirmButtonColor: '#3085d6'
+        });
+        
         setStudents((prev) =>
           prev.map((stu) =>
             res.data.students_updated.includes(stu.id_stu)
@@ -91,7 +184,7 @@ export default function FiliereStudents() {
       }
     } catch (error) {
       console.error("Erreur lors de la mise à jour des statuts :", error);
-      alert("Erreur lors de la mise à jour des statuts.");
+      showAlert("Erreur", "Erreur lors de la mise à jour des statuts", "error");
     }
   };
 
@@ -108,12 +201,18 @@ export default function FiliereStudents() {
         <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 rounded-3xl p-6 lg:p-8 mb-6 lg:mb-8 text-white shadow-2xl shadow-blue-500/25 border border-blue-300">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <h1 className="text-2xl lg:text-4xl font-bold mb-2 lg:mb-3 bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent">
+              <h1 className="text-2xl lg:text-4xl font-bold mb-2 lg:mb-3 bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent flex items-center gap-3">
+                <FontAwesomeIcon icon={faTrophy} />
                 Classement des Étudiants
               </h1>
-              <p className="text-blue-100 text-sm lg:text-lg font-medium">Découvrez le classement des meilleurs étudiants par filière</p>
+              <p className="text-blue-100 text-sm lg:text-lg font-medium flex items-center gap-2">
+                <FontAwesomeIcon icon={faChartBar} />
+                Découvrez le classement des meilleurs étudiants par filière
+              </p>
             </div>
-            <div className="hidden lg:block text-6xl opacity-20 transform rotate-12">🏆</div>
+            <div className="hidden lg:block text-6xl opacity-20 transform rotate-12">
+              <FontAwesomeIcon icon={faCrown} />
+            </div>
           </div>
         </div>
 
@@ -143,17 +242,32 @@ export default function FiliereStudents() {
               >
                 <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-all duration-300"></div>
                 <div className="relative z-10">
-                  <h3 className="text-lg lg:text-2xl font-bold mb-2 drop-shadow-lg">{filiere.name}</h3>
+                  <h3 className="text-lg lg:text-2xl font-bold mb-2 drop-shadow-lg flex items-center gap-2">
+                    <FontAwesomeIcon icon={faGraduationCap} />
+                    {filiere.name}
+                  </h3>
                   <div className="w-12 h-1 bg-amber-300 rounded-full mb-3"></div>
-                  <p className="text-white/80 text-xs lg:text-sm font-medium">
-                    {activeFiliere?.id === filiere.id ? '✓ Sélectionnée' : 'Cliquer pour voir le classement'}
+                  <p className="text-white/80 text-xs lg:text-sm font-medium flex items-center gap-2">
+                    {activeFiliere?.id === filiere.id ? (
+                      <>
+                        <FontAwesomeIcon icon={faCheckCircle} />
+                        Sélectionnée
+                      </>
+                    ) : (
+                      <>
+                        <FontAwesomeIcon icon={faEye} />
+                        Cliquer pour voir le classement
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
             ))
           ) : (
             <div className="col-span-full text-center py-8">
-              <div className="text-4xl mb-3 opacity-50">📭</div>
+              <div className="text-4xl mb-3 opacity-50">
+                <FontAwesomeIcon icon={faExclamationTriangle} />
+              </div>
               <p className="text-gray-600 font-medium">Aucune filière disponible</p>
             </div>
           )}
@@ -166,18 +280,23 @@ export default function FiliereStudents() {
             <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 p-6 lg:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 border-b border-blue-500">
               <div className="flex items-center gap-3 lg:gap-4">
                 <div className="p-2 lg:p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <span className="text-xl lg:text-2xl">📊</span>
+                  <FontAwesomeIcon icon={faClipboardList} className="text-xl lg:text-2xl text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl lg:text-3xl font-bold text-white mb-1 lg:mb-2">Classement - {activeFiliere.name}</h2>
+                  <h2 className="text-xl lg:text-3xl font-bold text-white mb-1 lg:mb-2">
+                    Classement - {activeFiliere.name}
+                  </h2>
                   <p className="text-blue-100 font-medium text-sm lg:text-base">
                     {loading ? (
                       <span className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
                         Chargement...
                       </span>
                     ) : (
-                      `Top ${students.length} étudiants - Score total`
+                      <span className="flex items-center gap-2">
+                        <FontAwesomeIcon icon={faUsers} />
+                        Top {students.length} étudiants - Score total
+                      </span>
                     )}
                   </p>
                 </div>
@@ -189,7 +308,7 @@ export default function FiliereStudents() {
                   disabled={!students.length}
                   className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-blue-900 font-bold py-3 lg:py-4 px-4 lg:px-8 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-105 border-2 border-amber-300 flex items-center gap-2 justify-center text-sm lg:text-base"
                 >
-                  <span>📥</span>
+                  <FontAwesomeIcon icon={faFileExcel} />
                   Exporter Excel
                 </button>
 
@@ -198,7 +317,7 @@ export default function FiliereStudents() {
                   disabled={!students.length}
                   className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 lg:py-4 px-4 lg:px-8 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-105 border-2 border-green-400 flex items-center gap-2 justify-center text-sm lg:text-base"
                 >
-                  <span>✅</span>
+                  <FontAwesomeIcon icon={faCheckCircle} />
                   Passer Top 30
                 </button>
               </div>
@@ -208,8 +327,11 @@ export default function FiliereStudents() {
             {loading ? (
               <div className="flex justify-center items-center py-16 lg:py-20">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 lg:h-16 w-12 lg:w-16 border-b-2 border-blue-600 mx-auto mb-3 lg:mb-4"></div>
-                  <p className="text-gray-600 font-medium text-sm lg:text-base">Chargement du classement...</p>
+                  <FontAwesomeIcon icon={faSpinner} className="animate-spin h-12 lg:h-16 w-12 lg:w-16 text-blue-600 mx-auto mb-3 lg:mb-4" />
+                  <p className="text-gray-600 font-medium text-sm lg:text-base flex items-center gap-2">
+                    <FontAwesomeIcon icon={faCog} className="animate-spin" />
+                    Chargement du classement...
+                  </p>
                 </div>
               </div>
             ) : students.length > 0 ? (
@@ -217,13 +339,16 @@ export default function FiliereStudents() {
                 <table className="min-w-full divide-y divide-gray-200/60">
                   <thead className="bg-gradient-to-r from-gray-50 to-blue-50/50">
                     <tr>
-                      <th className="px-4 lg:px-6 py-3 lg:py-5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200/60">
+                      <th className="px-4 lg:px-6 py-3 lg:py-5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200/60 flex items-center gap-2">
+                        <FontAwesomeIcon icon={faListOl} />
                         Rang
                       </th>
-                      <th className="px-4 lg:px-6 py-3 lg:py-5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200/60">
+                      <th className="px-4 lg:px-6 py-3 lg:py-5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200/60 flex items-center gap-2">
+                        <FontAwesomeIcon icon={faUserGraduate} />
                         Étudiant
                       </th>
-                      <th className="px-4 lg:px-6 py-3 lg:py-5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200/60">
+                      <th className="px-4 lg:px-6 py-3 lg:py-5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200/60 flex items-center gap-2">
+                        <FontAwesomeIcon icon={faIdCard} />
                         CIN
                       </th>
                       <th className="px-4 lg:px-6 py-3 lg:py-5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200/60">
@@ -290,9 +415,10 @@ export default function FiliereStudents() {
                         <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                           <button 
                             onClick={() => openStudentDetails(student)}
-                            className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-semibold py-1 lg:py-2 px-3 lg:px-5 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 transform shadow-md border border-amber-300 text-xs lg:text-sm"
+                            className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-semibold py-1 lg:py-2 px-3 lg:px-5 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 transform shadow-md border border-amber-300 text-xs lg:text-sm flex items-center gap-2"
                           >
-                            📋 Détails
+                            <FontAwesomeIcon icon={faEye} />
+                            Détails
                           </button>
                         </td>
                       </tr>
@@ -302,7 +428,9 @@ export default function FiliereStudents() {
               </div>
             ) : (
               <div className="text-center py-12 lg:py-16">
-                <div className="text-4xl lg:text-6xl mb-3 lg:mb-4 opacity-20">📭</div>
+                <div className="text-4xl lg:text-6xl mb-3 lg:mb-4 opacity-20">
+                  <FontAwesomeIcon icon={faUsers} />
+                </div>
                 <p className="text-gray-500 text-base lg:text-lg font-medium">Aucun étudiant trouvé pour cette filière</p>
                 <p className="text-gray-400 mt-1 lg:mt-2 text-sm lg:text-base">Veuillez sélectionner une autre filière</p>
               </div>
@@ -317,7 +445,7 @@ export default function FiliereStudents() {
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 lg:p-8 rounded-t-3xl flex justify-between items-center border-b border-blue-500">
                 <div className="flex items-center gap-3 lg:gap-4">
                   <div className="p-2 lg:p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <span className="text-xl lg:text-2xl">👤</span>
+                    <FontAwesomeIcon icon={faUserGraduate} className="text-xl lg:text-2xl text-white" />
                   </div>
                   <div>
                     <h3 className="text-xl lg:text-2xl font-bold text-white">Détails de l'étudiant</h3>
@@ -328,7 +456,7 @@ export default function FiliereStudents() {
                   onClick={closeStudentDetails}
                   className="text-white hover:text-amber-300 transition-colors duration-200 p-2 hover:bg-white/10 rounded-xl text-lg lg:text-xl"
                 >
-                  ✕
+                  <FontAwesomeIcon icon={faTimes} />
                 </button>
               </div>
               
@@ -336,17 +464,26 @@ export default function FiliereStudents() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
                   <div className="space-y-3 lg:space-y-4">
                     <div className="bg-gradient-to-r from-blue-50 to-amber-50 p-3 lg:p-4 rounded-2xl border border-blue-100">
-                      <label className="text-xs lg:text-sm font-semibold text-gray-500 uppercase tracking-wider">Nom Complet</label>
+                      <label className="text-xs lg:text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                        <FontAwesomeIcon icon={faUserGraduate} />
+                        Nom Complet
+                      </label>
                       <p className="text-base lg:text-lg font-bold text-gray-800">{selectedStudent.nom} {selectedStudent.prenom}</p>
                     </div>
                     
                     <div className="bg-gradient-to-r from-blue-50 to-amber-50 p-3 lg:p-4 rounded-2xl border border-blue-100">
-                      <label className="text-xs lg:text-sm font-semibold text-gray-500 uppercase tracking-wider">CIN</label>
+                      <label className="text-xs lg:text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                        <FontAwesomeIcon icon={faIdCard} />
+                        CIN
+                      </label>
                       <p className="text-base lg:text-lg font-mono font-bold text-gray-800">{selectedStudent.cin}</p>
                     </div>
                     
                     <div className="bg-gradient-to-r from-blue-50 to-amber-50 p-3 lg:p-4 rounded-2xl border border-blue-100">
-                      <label className="text-xs lg:text-sm font-semibold text-gray-500 uppercase tracking-wider">Filière</label>
+                      <label className="text-xs lg:text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                        <FontAwesomeIcon icon={faGraduationCap} />
+                        Filière
+                      </label>
                       <p className="text-base lg:text-lg font-bold text-blue-600">{activeFiliere.name}</p>
                     </div>
                   </div>
@@ -370,7 +507,10 @@ export default function FiliereStudents() {
                 </div>
                 
                 <div className="bg-gradient-to-r from-amber-100 to-amber-200 p-4 lg:p-6 rounded-2xl border border-amber-300 text-center">
-                  <label className="text-xs lg:text-sm font-semibold text-amber-800 uppercase tracking-wider">Score Total</label>
+                  <label className="text-xs lg:text-sm font-semibold text-amber-800 uppercase tracking-wider flex items-center justify-center gap-2">
+                    <FontAwesomeIcon icon={faAward} />
+                    Score Total
+                  </label>
                   <p className="text-2xl lg:text-4xl font-bold text-amber-900">{selectedStudent.total}</p>
                 </div>
               </div>
@@ -378,8 +518,9 @@ export default function FiliereStudents() {
               <div className="bg-gray-50 px-4 lg:px-8 py-4 lg:py-6 rounded-b-3xl border-t border-gray-200 flex justify-end">
                 <button 
                   onClick={closeStudentDetails}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2 lg:py-3 px-6 lg:px-8 rounded-2xl transition-all duration-300 hover:shadow-lg transform hover:scale-105 shadow-md border border-blue-500 text-sm lg:text-base"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2 lg:py-3 px-6 lg:px-8 rounded-2xl transition-all duration-300 hover:shadow-lg transform hover:scale-105 shadow-md border border-blue-500 text-sm lg:text-base flex items-center gap-2"
                 >
+                  <FontAwesomeIcon icon={faTimes} />
                   Fermer le détail
                 </button>
               </div>

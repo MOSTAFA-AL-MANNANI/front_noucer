@@ -1,12 +1,65 @@
 import { Link, NavLink } from "react-router-dom";
 import { logout } from "./logout";
 import { useState, useEffect } from "react";
+import Swal from 'sweetalert2';
+
+// Import FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faUsers,
+  faTrophy,
+  faClock,
+  faQuestionCircle,
+  faCog,
+  faGraduationCap,
+  faBook,
+  faUserPlus,
+  faCalendarAlt,
+  faFileAlt,
+  faUserGraduate,
+  faClipboardList,
+  faFileExcel,
+  faSignOutAlt,
+  faHome,
+  faCogs,
+  faListAlt,
+  faUserClock,
+  faChartBar,
+  faIdCard
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function Sidebar() {
   const [activeSection, setActiveSection] = useState("");
 
   const navLinkClasses = "flex items-center justify-between px-4 py-3.5 text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-amber-50 hover:text-blue-700 rounded-xl transition-all duration-300 group border border-transparent hover:border-blue-200 hover:shadow-md transform hover:scale-[1.02]";
   const activeLinkClasses = "bg-gradient-to-r from-blue-600 to-amber-500 text-white shadow-lg shadow-blue-500/25 border-blue-400 transform scale-[1.02]";
+
+  // Fonction de déconnexion avec SweetAlert2
+  const handleLogout = () => {
+    Swal.fire({
+      title: 'Déconnexion',
+      text: 'Êtes-vous sûr de vouloir vous déconnecter ?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, déconnecter',
+      cancelButtonText: 'Annuler',
+      background: '#ffffff',
+      color: '#333333'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        logout();
+        Swal.fire({
+          title: 'Déconnecté !',
+          text: 'Vous avez été déconnecté avec succès',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    });
+  };
 
   // Smooth scroll function
   const scrollToSection = (sectionId) => {
@@ -59,7 +112,8 @@ export default function Sidebar() {
       <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar">
         {/* Main Navigation */}
         <div className="transition-all duration-300 mb-4">
-          <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/50 rounded-lg">
+          <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/50 rounded-lg flex items-center gap-2">
+            <FontAwesomeIcon icon={faHome} className="text-gray-400" />
             Navigation
           </p>
         </div>
@@ -74,7 +128,10 @@ export default function Sidebar() {
             <>
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
-                  <span className="text-lg">🎯</span>
+                  <FontAwesomeIcon 
+                    icon={faClipboardList} 
+                    className={`text-lg ${isActive ? 'text-white' : 'text-blue-600'}`} 
+                  />
                 </div>
                 <span className="font-medium transition-all duration-300">
                   Entretien
@@ -97,7 +154,10 @@ export default function Sidebar() {
             <>
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
-                  <span className="text-lg">👥</span>
+                  <FontAwesomeIcon 
+                    icon={faUsers} 
+                    className={`text-lg ${isActive ? 'text-white' : 'text-blue-600'}`} 
+                  />
                 </div>
                 <span className="font-medium transition-all duration-300">
                   Gestion Étudiants
@@ -120,7 +180,10 @@ export default function Sidebar() {
             <>
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
-                  <span className="text-lg">🏆</span>
+                  <FontAwesomeIcon 
+                    icon={faTrophy} 
+                    className={`text-lg ${isActive ? 'text-white' : 'text-blue-600'}`} 
+                  />
                 </div>
                 <span className="font-medium transition-all duration-300">
                   Top Étudiants
@@ -143,7 +206,10 @@ export default function Sidebar() {
             <>
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
-                  <span className="text-lg">⏳</span>
+                  <FontAwesomeIcon 
+                    icon={faUserClock} 
+                    className={`text-lg ${isActive ? 'text-white' : 'text-blue-600'}`} 
+                  />
                 </div>
                 <span className="font-medium transition-all duration-300">
                   Étudiants en Attente
@@ -156,26 +222,25 @@ export default function Sidebar() {
           )}
         </NavLink>
 
-
-
         {/* Additional Navigation Links */}
         <div className="transition-all duration-300 mt-6 mb-4">
-          <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/50 rounded-lg">
+          <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-white/50 rounded-lg flex items-center gap-2">
+            <FontAwesomeIcon icon={faCogs} className="text-gray-400" />
             Gestion
           </p>
         </div>
 
         {[
-          { to: "/personel", icon: "❓", label: "Questions Personnelles" },
-          { to: "/technique", icon: "⚙️", label: "Questions Techniques" },
-          { to: "/filiere", icon: "🎓", label: "Gestion de Filiere" },
-          { to: "/section", icon: "📚", label: "Gestion de Section" },
-          { to: "/EnrollStudent", icon: "➕", label: "Enroll Student" },
-          { to: "/absence", icon: "📅", label: "Absence" },
-          { to: "/document", icon: "📄", label: "Document" },
-          { to: "/section/student", icon: "👨‍🎓", label: "Sections Students" },
-          { to: "/absences/list", icon: "📝", label: "Liste Absence" },
-          { to: "/student/execl", icon: "👨‍🎓", label: "Import Execl" }
+          { to: "/personel", icon: faQuestionCircle, label: "Questions Personnelles" },
+          { to: "/technique", icon: faCog, label: "Questions Techniques" },
+          { to: "/filiere", icon: faGraduationCap, label: "Gestion de Filière" },
+          { to: "/section", icon: faBook, label: "Gestion de Section" },
+          { to: "/EnrollStudent", icon: faUserPlus, label: "Inscrire Étudiant" },
+          { to: "/absence", icon: faCalendarAlt, label: "Absences" },
+          { to: "/document", icon: faFileAlt, label: "Documents" },
+          { to: "/section/student", icon: faUserGraduate, label: "Étudiants par Section" },
+          { to: "/absences/list", icon: faListAlt, label: "Liste des Absences" },
+          { to: "/student/execl", icon: faFileExcel, label: "Import Excel" }
         ].map((item) => (
           <NavLink 
             key={item.to}
@@ -188,7 +253,10 @@ export default function Sidebar() {
               <>
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/20' : 'bg-blue-100 group-hover:bg-blue-200'}`}>
-                    <span className="text-lg">{item.icon}</span>
+                    <FontAwesomeIcon 
+                      icon={item.icon} 
+                      className={`text-lg ${isActive ? 'text-white' : 'text-blue-600'}`} 
+                    />
                   </div>
                   <span className="font-medium transition-all duration-300">
                     {item.label}
@@ -206,12 +274,13 @@ export default function Sidebar() {
       {/* Bouton Logout */}
       <div className="mt-auto pt-6 border-t border-blue-200">
         <button 
-          onClick={logout}
+          onClick={handleLogout}
           className="w-full flex items-center justify-center px-4 py-3.5 text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-xl transition-all duration-300 font-semibold border border-red-300 hover:border-red-400 hover:shadow-lg hover:scale-[1.02] active:scale-95 shadow-lg shadow-red-500/20 group"
         >
-          <svg className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-          </svg>
+          <FontAwesomeIcon 
+            icon={faSignOutAlt} 
+            className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:translate-x-1" 
+          />
           <span className="transition-all duration-300">
             Déconnexion
           </span>

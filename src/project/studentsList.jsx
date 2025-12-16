@@ -3,21 +3,48 @@ import { useNavigate } from "react-router-dom";
 import api from "./api";
 import Sidebar from "./sidebar";
 import * as XLSX from "xlsx";
+import Swal from 'sweetalert2';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faUsers, 
+  faFileExcel, 
+  faSearch, 
+  faSync, 
+  faFilter, 
+  faTimes, 
+  faArrowRight, 
+  faIdCard, 
+  faPhone, 
+  faEnvelope, 
+  faGraduationCap,
+  faChartBar,
+  faList,
+  faUserCheck,
+  faChevronRight
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function StudentsList() {
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
   const [searchField, setSearchField] = useState("all");
-  const [filiereFilter, setFiliereFilter] = useState("all"); // حالة جديدة للتصفية حسب الشعبة
+  const [filiereFilter, setFiliereFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
-  const [alert, setAlert] = useState({ show: false, message: "", type: "" });
   const navigate = useNavigate();
 
-  // Fonction d'alerte améliorée
+  // Fonction d'alerte avec SweetAlert2
   const showAlert = (message, type = "success") => {
-    setAlert({ show: true, message, type });
-    setTimeout(() => setAlert({ show: false, message: "", type: "" }), 4000);
+    Swal.fire({
+      title: type === "success" ? "Succès" : 
+             type === "error" ? "Erreur" : 
+             "Information",
+      text: message,
+      icon: type,
+      timer: 4000,
+      showConfirmButton: false,
+      toast: true,
+      position: 'top-end'
+    });
   };
 
   const fetchData = async () => {
@@ -72,10 +99,10 @@ export default function StudentsList() {
     }
   };
 
-  // وظائف التصفية حسب الشعبة
+  // Fonctions de filtrage par filière
   const filterByFiliere = (filiere) => {
     setFiliereFilter(filiere);
-    setSearch(""); // إعادة ضبط البحث النصي عند التصفية بالشعبة
+    setSearch("");
   };
 
   const resetFiliereFilter = () => {
@@ -86,12 +113,12 @@ export default function StudentsList() {
   const filteredStudents = useMemo(() => {
     let filtered = students;
 
-    // التصفية حسب الشعبة أولاً
+    // Filtrage par filière d'abord
     if (filiereFilter !== "all") {
       filtered = filtered.filter(student => student.filiere === filiereFilter);
     }
 
-    // ثم التصفية حسب البحث النصي
+    // Puis filtrage par recherche textuelle
     if (!search.trim()) return filtered;
 
     return filtered.filter(student => {
@@ -155,41 +182,16 @@ export default function StudentsList() {
       
       {/* Main Content - col-9 */}
       <div className="w-9/12 p-6">
-        {/* Alert Notification */}
-        {alert.show && (
-          <div className={`mb-6 p-4 rounded-lg border-l-4 shadow-lg ${
-            alert.type === "success" ? "bg-green-50 border-green-500 text-green-700" :
-            alert.type === "error" ? "bg-red-50 border-red-500 text-red-700" :
-            "bg-blue-50 border-blue-500 text-blue-700"
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xl mr-3">
-                  {alert.type === "success" ? "✅" : 
-                   alert.type === "error" ? "❌" : "ℹ️"}
-                </span>
-                <span className="font-medium">{alert.message}</span>
-              </div>
-              <button 
-                onClick={() => setAlert({ show: false, message: "", type: "" })}
-                className="text-gray-500 hover:text-gray-700 text-lg"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Header Section */}
         <div className="mb-8">
           <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-600">
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                  <span className="w-2 h-8 bg-blue-600 rounded-full mr-3"></span>
-                  📋 Liste des Étudiants Inscrits
+                  <FontAwesomeIcon icon={faUsers} className="mr-3 text-blue-600" />
+                  Liste des Étudiants Inscrits
                 </h2>
-                <p className="text-gray-600 mt-2 ml-5">
+                <p className="text-gray-600 mt-2 ml-8">
                   Gérer et afficher la liste des étudiants inscrits dans le système
                 </p>
               </div>
@@ -202,12 +204,12 @@ export default function StudentsList() {
               >
                 {exportLoading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <FontAwesomeIcon icon={faSync} className="animate-spin mr-2" />
                     Export...
                   </>
                 ) : (
                   <>
-                    <span className="mr-2">📊</span>
+                    <FontAwesomeIcon icon={faFileExcel} className="mr-2" />
                     Export Excel
                   </>
                 )}
@@ -216,7 +218,7 @@ export default function StudentsList() {
           </div>
         </div>
 
-        {/* Search Bar améliorée */}
+        {/* Barre de recherche améliorée */}
         <div className="mb-6 bg-white rounded-xl shadow-sm p-4 border border-gray-200">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="flex-1 flex flex-col md:flex-row gap-3">
@@ -234,9 +236,7 @@ export default function StudentsList() {
               
               <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                  </svg>
+                  <FontAwesomeIcon icon={faSearch} className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
                   type="text"
@@ -254,8 +254,9 @@ export default function StudentsList() {
                   setSearch("");
                   setFiliereFilter("all");
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition duration-200 whitespace-nowrap"
+                className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition duration-200 whitespace-nowrap"
               >
+                <FontAwesomeIcon icon={faTimes} className="mr-2" />
                 Réinitialiser tous les filtres
               </button>
             )}
@@ -289,7 +290,7 @@ export default function StudentsList() {
           )}
         </div>
 
-        {/* Statistiques rapides avec إمكانية النقر */}
+        {/* Statistiques rapides avec fonctionnalité de clic */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div 
             onClick={resetFiliereFilter}
@@ -297,10 +298,11 @@ export default function StudentsList() {
               filiereFilter === "all" ? "ring-4 ring-blue-300 ring-opacity-70" : ""
             }`}
           >
+            <FontAwesomeIcon icon={faUsers} className="text-xl mb-2" />
             <div className="text-2xl font-bold">{students.length}</div>
             <div className="text-sm opacity-90 flex items-center justify-center">
               Total Inscrits
-              {filiereFilter === "all" && <span className="ml-2">✓</span>}
+              {filiereFilter === "all" && <FontAwesomeIcon icon={faUserCheck} className="ml-2" />}
             </div>
           </div>
           
@@ -310,12 +312,13 @@ export default function StudentsList() {
               filiereFilter === "Développement web" ? "ring-4 ring-purple-300 ring-opacity-70" : ""
             }`}
           >
+            <FontAwesomeIcon icon={faGraduationCap} className="text-xl mb-2" />
             <div className="text-2xl font-bold">
               {students.filter(s => s.filiere === "Développement web").length}
             </div>
             <div className="text-sm opacity-90 flex items-center justify-center">
               Développement Web
-              {filiereFilter === "Développement web" && <span className="ml-2">✓</span>}
+              {filiereFilter === "Développement web" && <FontAwesomeIcon icon={faUserCheck} className="ml-2" />}
             </div>
           </div>
           
@@ -325,12 +328,13 @@ export default function StudentsList() {
               filiereFilter === "Marketing digital" ? "ring-4 ring-pink-300 ring-opacity-70" : ""
             }`}
           >
+            <FontAwesomeIcon icon={faChartBar} className="text-xl mb-2" />
             <div className="text-2xl font-bold">
               {students.filter(s => s.filiere === "Marketing digital").length}
             </div>
             <div className="text-sm opacity-90 flex items-center justify-center">
               Marketing Digital
-              {filiereFilter === "Marketing digital" && <span className="ml-2">✓</span>}
+              {filiereFilter === "Marketing digital" && <FontAwesomeIcon icon={faUserCheck} className="ml-2" />}
             </div>
           </div>
           
@@ -340,23 +344,25 @@ export default function StudentsList() {
               filiereFilter === "Création de contenu" ? "ring-4 ring-indigo-300 ring-opacity-70" : ""
             }`}
           >
+            <FontAwesomeIcon icon={faList} className="text-xl mb-2" />
             <div className="text-2xl font-bold">
               {students.filter(s => s.filiere === "Création de contenu").length}
             </div>
             <div className="text-sm opacity-90 flex items-center justify-center">
               Création Contenu
-              {filiereFilter === "Création de contenu" && <span className="ml-2">✓</span>}
+              {filiereFilter === "Création de contenu" && <FontAwesomeIcon icon={faUserCheck} className="ml-2" />}
             </div>
           </div>
         </div>
 
-        {/* Table Container */}
+        {/* Conteneur du tableau */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          {/* Table Header */}
+          {/* En-tête du tableau */}
           <div className="bg-gradient-to-r from-amber-400 to-amber-300 px-6 py-4 rounded-t-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                👥 Étudiants Inscrits
+                <FontAwesomeIcon icon={faList} className="mr-2" />
+                Étudiants Inscrits
                 <span className="ml-3 bg-white text-amber-600 text-sm px-3 py-1 rounded-full shadow-sm">
                   {filteredStudents.length} étudiant(s)
                   {(search || filiereFilter !== "all") && ` sur ${students.length}`}
@@ -365,10 +371,12 @@ export default function StudentsList() {
               <div className="flex items-center space-x-2">
                 {filiereFilter !== "all" && (
                   <div className="text-sm text-gray-700 bg-white bg-opacity-50 px-3 py-1 rounded-full">
+                    <FontAwesomeIcon icon={faFilter} className="mr-1" />
                     Filière: <span className="font-semibold">{filiereFilter}</span>
                   </div>
                 )}
                 <div className="text-sm text-gray-700 bg-white bg-opacity-50 px-3 py-1 rounded-full">
+                  <FontAwesomeIcon icon={faSearch} className="mr-1" />
                   Recherche: <span className="font-semibold capitalize">{searchField}</span>
                 </div>
               </div>
@@ -378,8 +386,8 @@ export default function StudentsList() {
           <div className="p-6">
             {loading ? (
               <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-600">Chargement des étudiants...</span>
+                <FontAwesomeIcon icon={faSync} className="animate-spin text-blue-600 text-2xl mr-3" />
+                <span className="text-gray-600">Chargement des étudiants...</span>
               </div>
             ) : filteredStudents.length > 0 ? (
               <div className="overflow-x-auto">
@@ -399,12 +407,21 @@ export default function StudentsList() {
                         <td className="px-6 py-4">
                           <div>
                             <div className="font-medium text-gray-900">{s.prenom} {s.nom}</div>
-                            <div className="text-sm text-gray-500 font-mono mt-1">CIN: {s.cin || "Non renseigné"}</div>
+                            <div className="text-sm text-gray-500 font-mono mt-1 flex items-center">
+                              <FontAwesomeIcon icon={faIdCard} className="mr-1 text-gray-400" />
+                              CIN: {s.cin || "Non renseigné"}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{s.numero}</div>
-                          <div className="text-xs text-gray-500 truncate max-w-[150px]">{s.gmail}</div>
+                          <div className="text-sm text-gray-900 flex items-center">
+                            <FontAwesomeIcon icon={faPhone} className="mr-2 text-gray-400" />
+                            {s.numero}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate max-w-[150px] flex items-center">
+                            <FontAwesomeIcon icon={faEnvelope} className="mr-2 text-gray-400" />
+                            {s.gmail}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${getFiliereColor(s.filiere)}`}>
@@ -421,9 +438,7 @@ export default function StudentsList() {
                             onClick={() => navigate(`/entretien/${s.id_stu}`)}
                             className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-4 py-2 rounded-lg transition duration-200 flex items-center space-x-2 text-sm font-medium shadow-md"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
+                            <FontAwesomeIcon icon={faArrowRight} />
                             <span>Accéder à l'entretien</span>
                           </button>
                         </td>
@@ -436,7 +451,7 @@ export default function StudentsList() {
               <div className="text-center py-12">
                 <div className="flex justify-center mb-4">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">🔍</span>
+                    <FontAwesomeIcon icon={faSearch} className="text-2xl text-gray-400" />
                   </div>
                 </div>
                 <p className="text-gray-600 font-medium text-lg mb-2">
@@ -455,8 +470,9 @@ export default function StudentsList() {
                       setSearch("");
                       setFiliereFilter("all");
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
+                    <FontAwesomeIcon icon={faTimes} className="mr-2" />
                     Réinitialiser tous les filtres
                   </button>
                 )}
@@ -464,7 +480,7 @@ export default function StudentsList() {
             )}
           </div>
 
-          {/* Table Footer */}
+          {/* Pied de tableau */}
           {filteredStudents.length > 0 && (
             <div className="bg-gray-50 px-6 py-3 rounded-b-xl border-t border-gray-200">
               <div className="flex items-center justify-between">
@@ -478,7 +494,8 @@ export default function StudentsList() {
                 </p>
                 <div className="text-sm text-gray-500 flex items-center space-x-2">
                   {(search || filiereFilter !== "all") && (
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs flex items-center">
+                      <FontAwesomeIcon icon={faFilter} className="mr-1" />
                       Filtre actif
                     </span>
                   )}

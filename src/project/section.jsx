@@ -1,6 +1,32 @@
 import React, { useEffect, useState } from "react";
 import api from "./api";
 import Sidebar from "./sidebar";
+import Swal from 'sweetalert2';
+
+// Import FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faBook,
+  faPlus,
+  faEdit,
+  faTrash,
+  faSave,
+  faSpinner,
+  faTimes,
+  faSearch,
+  faFilter,
+  faUsers,
+  faCalendarAlt,
+  faChartBar,
+  faUniversity,
+  faChalkboardTeacher,
+  faIdCard,
+  faExclamationTriangle,
+  faCheckCircle,
+  faInfoCircle,
+  faList,
+  faGraduationCap
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function SectionCRUD() {
   const [sections, setSections] = useState([]);
@@ -15,14 +41,36 @@ export default function SectionCRUD() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Fonction pour afficher les alertes SweetAlert2
+  const showAlert = (title, text, type = "success") => {
+    Swal.fire({
+      title,
+      text,
+      icon: type,
+      confirmButtonColor: '#3085d6',
+      confirmButtonText: 'OK'
+    });
+  };
+
   // Récupérer toutes les sections
   const fetchSections = async () => {
     setLoading(true);
     try {
       const res = await api.get("/sections");
       setSections(res.data.data || res.data);
+      
+      Swal.fire({
+        title: 'Chargement réussi',
+        text: `${res.data.data?.length || res.data.length} section(s) chargée(s)`,
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true
+      });
     } catch (err) {
       console.error("Erreur lors du chargement des sections:", err);
+      showAlert("Erreur", "Erreur lors du chargement des sections", "error");
     } finally {
       setLoading(false);
     }
@@ -35,6 +83,7 @@ export default function SectionCRUD() {
       setFilieres(res.data.data || res.data);
     } catch (err) {
       console.error("Erreur lors du chargement des filières:", err);
+      showAlert("Erreur", "Erreur lors du chargement des filières", "error");
     }
   };
 
@@ -46,6 +95,12 @@ export default function SectionCRUD() {
   // Ajouter ou modifier une section
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!filiereId || !name || !startDate) {
+      showAlert("Champs requis", "Veuillez remplir tous les champs obligatoires", "warning");
+      return;
+    }
+
     setLoading(true);
     const data = { 
       filiere_id: filiereId, 
@@ -59,14 +114,30 @@ export default function SectionCRUD() {
     try {
       if (editId) {
         await api.put(`/sections/${editId}`, data);
+        
+        Swal.fire({
+          title: 'Modification réussie !',
+          text: `La section "${name}" a été modifiée avec succès`,
+          icon: 'success',
+          confirmButtonColor: '#3085d6'
+        });
+        
         setEditId(null);
       } else {
         await api.post("/sections", data);
+        
+        Swal.fire({
+          title: 'Création réussie !',
+          text: `La section "${name}" a été créée avec succès`,
+          icon: 'success',
+          confirmButtonColor: '#3085d6'
+        });
       }
       resetForm();
       fetchSections();
     } catch (err) {
       console.error("Erreur lors de l'opération:", err);
+      showAlert("Erreur", "Erreur lors de l'opération sur la section", "error");
     } finally {
       setLoading(false);
     }
@@ -83,9 +154,32 @@ export default function SectionCRUD() {
   };
 
   // Annuler l'édition
-  const handleCancel = () => {
-    setEditId(null);
-    resetForm();
+  const handleCancel = async () => {
+    const result = await Swal.fire({
+      title: 'Annuler la modification',
+      text: 'Voulez-vous vraiment annuler les modifications ?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, annuler',
+      cancelButtonText: 'Continuer'
+    });
+
+    if (result.isConfirmed) {
+      setEditId(null);
+      resetForm();
+      
+      Swal.fire({
+        title: 'Modification annulée',
+        text: 'Les modifications ont été annulées',
+        icon: 'info',
+        timer: 1500,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true
+      });
+    }
   };
 
   // Préparer la modification
@@ -97,19 +191,51 @@ export default function SectionCRUD() {
     setEndDate(section.end_date || "");
     setStatus(section.status);
     setEditId(section.id);
+    
     // Scroll vers le formulaire
     document.getElementById("form-section").scrollIntoView({ behavior: "smooth" });
+    
+    Swal.fire({
+      title: 'Modification',
+      text: `Vous modifiez la section "${section.name}"`,
+      icon: 'info',
+      timer: 1500,
+      showConfirmButton: false,
+      position: 'top-end',
+      toast: true
+    });
   };
 
   // Supprimer une section
   const handleDelete = async (id) => {
-    if (window.confirm("Voulez-vous vraiment supprimer cette section ?")) {
+    const section = sections.find(s => s.id === id);
+    
+    const result = await Swal.fire({
+      title: 'Confirmer la suppression',
+      html: `Êtes-vous sûr de vouloir supprimer la section <strong>"${section.name}"</strong> ?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Oui, supprimer !',
+      cancelButtonText: 'Annuler'
+    });
+
+    if (result.isConfirmed) {
       try {
         await api.delete(`/sections/${id}`);
+        
+        Swal.fire({
+          title: 'Supprimé !',
+          text: `La section "${section.name}" a été supprimée`,
+          icon: 'success',
+          confirmButtonColor: '#3085d6'
+        });
+        
         fetchSections();
       } catch (err) {
         console.error("Erreur lors de la suppression:", err);
-        alert("Erreur lors de la suppression. La section est peut-être utilisée.");
+        showAlert("Erreur", "Erreur lors de la suppression. La section est peut-être utilisée.", "error");
       }
     }
   };
@@ -153,10 +279,12 @@ export default function SectionCRUD() {
           <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-purple-600 rounded-3xl p-8 mb-8 text-white shadow-2xl shadow-blue-500/25 border border-blue-300">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent flex items-center gap-3">
+                  <FontAwesomeIcon icon={faChalkboardTeacher} />
                   Gestion des Sections
                 </h1>
-                <p className="text-blue-100 text-lg font-medium">
+                <p className="text-blue-100 text-lg font-medium flex items-center gap-2">
+                  <FontAwesomeIcon icon={faUniversity} />
                   Organisez et gérez les sections académiques
                 </p>
               </div>
@@ -164,7 +292,8 @@ export default function SectionCRUD() {
               {/* Indicateur de Comptage */}
               <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white mb-2">
+                  <div className="text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
+                    <FontAwesomeIcon icon={faList} />
                     {sections.length}
                   </div>
                   <div className="text-amber-200 text-sm font-medium">
@@ -180,9 +309,10 @@ export default function SectionCRUD() {
             <div className="bg-gradient-to-r from-gray-50 to-blue-50/50 p-8 border-b border-gray-200/60">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-100 rounded-xl">
-                  <span className="text-xl text-blue-600">
-                    {editId ? "✏️" : "➕"}
-                  </span>
+                  <FontAwesomeIcon 
+                    icon={editId ? faEdit : faPlus} 
+                    className="text-xl text-blue-600" 
+                  />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-gray-800 mb-2">
@@ -199,7 +329,8 @@ export default function SectionCRUD() {
               <div className="grid grid-cols-2 gap-8">
                 {/* Filière */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faGraduationCap} />
                     Filière <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -219,7 +350,8 @@ export default function SectionCRUD() {
 
                 {/* Nom de la section */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faBook} />
                     Nom de la section <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -234,7 +366,8 @@ export default function SectionCRUD() {
 
                 {/* Capacité */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faUsers} />
                     Capacité
                   </label>
                   <input
@@ -250,7 +383,8 @@ export default function SectionCRUD() {
 
                 {/* Statut */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faChartBar} />
                     Statut
                   </label>
                   <select
@@ -266,7 +400,8 @@ export default function SectionCRUD() {
 
                 {/* Date de début */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faCalendarAlt} />
                     Date de début <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -280,7 +415,8 @@ export default function SectionCRUD() {
 
                 {/* Date de fin */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                  <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faCalendarAlt} />
                     Date de fin
                   </label>
                   <input
@@ -301,12 +437,13 @@ export default function SectionCRUD() {
                 >
                   {loading ? (
                     <>
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
                       <span>Traitement en cours...</span>
                     </>
                   ) : (
                     <>
-                      <span>{editId ? "💾 Mettre à jour" : "➕ Créer la section"}</span>
+                      <FontAwesomeIcon icon={editId ? faSave : faPlus} />
+                      <span>{editId ? "Mettre à jour" : "Créer la section"}</span>
                     </>
                   )}
                 </button>
@@ -317,7 +454,7 @@ export default function SectionCRUD() {
                     onClick={handleCancel}
                     className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold py-5 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-xl shadow-lg flex items-center justify-center gap-3"
                   >
-                    <span>✕</span>
+                    <FontAwesomeIcon icon={faTimes} />
                     Annuler
                   </button>
                 )}
@@ -331,7 +468,7 @@ export default function SectionCRUD() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-amber-100 rounded-xl">
-                    <span className="text-xl text-amber-600">🔍</span>
+                    <FontAwesomeIcon icon={faSearch} className="text-xl text-amber-600" />
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-gray-800 mb-2">
@@ -344,7 +481,10 @@ export default function SectionCRUD() {
                 </div>
 
                 <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl p-4 text-white text-center">
-                  <div className="text-2xl font-bold">{filteredSections.length}</div>
+                  <div className="text-2xl font-bold flex items-center justify-center gap-2">
+                    <FontAwesomeIcon icon={faFilter} />
+                    {filteredSections.length}
+                  </div>
                   <div className="text-amber-100 text-sm font-medium">
                     Section{filteredSections.length !== 1 ? 's' : ''} trouvée{filteredSections.length !== 1 ? 's' : ''}
                   </div>
@@ -353,6 +493,9 @@ export default function SectionCRUD() {
             </div>
             <div className="p-8">
               <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <FontAwesomeIcon icon={faSearch} className="text-gray-400 text-lg" />
+                </div>
                 <input
                   type="text"
                   placeholder="Rechercher une section ou filière..."
@@ -360,15 +503,12 @@ export default function SectionCRUD() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <span className="text-gray-400 text-lg">🔍</span>
-                </div>
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm("")}
                     className="absolute inset-y-0 right-0 pr-4 flex items-center hover:scale-110 transition-transform duration-200"
                   >
-                    <span className="text-gray-400 hover:text-gray-600 text-lg">✕</span>
+                    <FontAwesomeIcon icon={faTimes} className="text-gray-400 hover:text-gray-600 text-lg" />
                   </button>
                 )}
               </div>
@@ -381,13 +521,14 @@ export default function SectionCRUD() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <span className="text-2xl">📚</span>
+                    <FontAwesomeIcon icon={faBook} className="text-2xl text-white" />
                   </div>
                   <div>
                     <h2 className="text-3xl font-bold text-white">
                       Liste des Sections
                     </h2>
-                    <p className="text-blue-100">
+                    <p className="text-blue-100 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faChartBar} />
                       {sections.length} section{sections.length !== 1 ? 's' : ''} au total
                     </p>
                   </div>
@@ -398,16 +539,17 @@ export default function SectionCRUD() {
             {loading ? (
               <div className="flex justify-center items-center py-16">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600 font-medium text-lg">Chargement des sections...</p>
+                  <FontAwesomeIcon icon={faSpinner} className="animate-spin h-16 w-16 text-blue-600 mx-auto mb-4" />
+                  <p className="text-gray-600 font-medium text-lg flex items-center gap-2">
+                    <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                    Chargement des sections...
+                  </p>
                 </div>
               </div>
             ) : filteredSections.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
-                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4" />
-                  </svg>
+                  <FontAwesomeIcon icon={faExclamationTriangle} className="w-12 h-12 text-gray-400" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-700 mb-3">Aucune section trouvée</h3>
                 <p className="text-gray-500 text-lg mb-4">
@@ -416,8 +558,9 @@ export default function SectionCRUD() {
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm("")}
-                    className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 hover:scale-105 transform"
+                    className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 hover:scale-105 transform flex items-center gap-2"
                   >
+                    <FontAwesomeIcon icon={faTimes} />
                     Effacer la recherche
                   </button>
                 )}
@@ -433,17 +576,19 @@ export default function SectionCRUD() {
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-start gap-4 flex-1">
                           <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center font-semibold text-white group-hover:from-amber-500 group-hover:to-amber-600 transition-all duration-300">
-                            {section.name.charAt(0)}
+                            <FontAwesomeIcon icon={faBook} />
                           </div>
                           <div className="flex-1">
                             <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-700 transition-colors">
                               {section.name}
                             </h3>
-                            <p className="text-gray-600 font-medium">
+                            <p className="text-gray-600 font-medium flex items-center gap-2">
+                              <FontAwesomeIcon icon={faGraduationCap} />
                               {section.filiere?.nom || "Filière non spécifiée"}
                             </p>
                             <div className="flex items-center gap-4 mt-2">
-                              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">
+                              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-lg flex items-center gap-2">
+                                <FontAwesomeIcon icon={faUsers} />
                                 {section.capacity} places
                               </span>
                               <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusClass(section.status)}`}>
@@ -456,18 +601,24 @@ export default function SectionCRUD() {
 
                       {/* Période */}
                       <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                        <div>
-                          <span className="text-gray-500 font-medium">Début:</span>
-                          <span className="ml-2 text-gray-800 font-medium">
-                            {new Date(section.start_date).toLocaleDateString('fr-FR')}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <FontAwesomeIcon icon={faCalendarAlt} className="text-gray-400" />
+                          <div>
+                            <span className="text-gray-500 font-medium">Début:</span>
+                            <span className="ml-2 text-gray-800 font-medium">
+                              {new Date(section.start_date).toLocaleDateString('fr-FR')}
+                            </span>
+                          </div>
                         </div>
                         {section.end_date && (
-                          <div>
-                            <span className="text-gray-500 font-medium">Fin:</span>
-                            <span className="ml-2 text-gray-800 font-medium">
-                              {new Date(section.end_date).toLocaleDateString('fr-FR')}
-                            </span>
+                          <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={faCalendarAlt} className="text-gray-400" />
+                            <div>
+                              <span className="text-gray-500 font-medium">Fin:</span>
+                              <span className="ml-2 text-gray-800 font-medium">
+                                {new Date(section.end_date).toLocaleDateString('fr-FR')}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -478,14 +629,14 @@ export default function SectionCRUD() {
                           onClick={() => handleEdit(section)}
                           className="flex-1 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-gray-900 font-semibold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                         >
-                          <span>✏️</span>
+                          <FontAwesomeIcon icon={faEdit} />
                           Modifier
                         </button>
                         <button
                           onClick={() => handleDelete(section.id)}
                           className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                         >
-                          <span>🗑️</span>
+                          <FontAwesomeIcon icon={faTrash} />
                           Supprimer
                         </button>
                       </div>

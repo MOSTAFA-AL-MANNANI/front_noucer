@@ -2,6 +2,30 @@ import React, { useEffect, useState } from "react";
 import api from "./api";
 import Sidebar from "./sidebar";
 import * as XLSX from "xlsx";
+import Swal from 'sweetalert2';
+
+// Import FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faUsers, 
+  faUserGraduate, 
+  faClipboardList, 
+  faSearch, 
+  faDownload, 
+  faFileExcel, 
+  faChartBar, 
+  faBook, 
+  faChevronDown,
+  faUserCircle,
+  faTimesCircle,
+  faCheckCircle,
+  faCalendarAlt,
+  faIdCard,
+  faEnvelope,
+  faSignOutAlt,
+  faExclamationTriangle,
+  faInfoCircle
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function Absences() {
   const [sections, setSections] = useState([]);
@@ -23,7 +47,15 @@ export default function Absences() {
           setSelectedSection(res.data[0]);
         }
       })
-      .catch(err => console.error("Erreur Sections:", err))
+      .catch(err => {
+        console.error("Erreur Sections:", err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Erreur',
+          text: 'Impossible de charger les sections',
+          confirmButtonColor: '#3085d6',
+        });
+      })
       .finally(() => setSectionLoading(false));
   }, []);
 
@@ -46,9 +78,27 @@ export default function Absences() {
       } else {
         setStudents([]);
       }
+
+      // Alert de succès
+      Swal.fire({
+        icon: 'success',
+        title: `Section ${section.name} chargée`,
+        text: `${students.length} étudiant(s) trouvé(s)`,
+        timer: 2000,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true
+      });
+
     } catch (error) {
       console.error("Erreur Étudiants:", error);
       setStudents([]);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erreur',
+        text: 'Impossible de charger les étudiants de cette section',
+        confirmButtonColor: '#3085d6',
+      });
     } finally {
       setLoading(false);
     }
@@ -60,10 +110,30 @@ export default function Absences() {
     setLoading(true);
     try {
       const res = await api.get(`/students/${student.id_stu}/absences`);
-      setAbsences(Array.isArray(res.data) ? res.data : []);
+      const absencesData = Array.isArray(res.data) ? res.data : [];
+      setAbsences(absencesData);
+
+      // Alert d'information pour les absences
+      if (absencesData.length > 0) {
+        Swal.fire({
+          icon: 'info',
+          title: `${absencesData.length} absence(s)`,
+          text: `Pour ${student.nom} ${student.prenom}`,
+          timer: 1500,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
+      }
     } catch (error) {
       console.error("Erreur Absences:", error);
       setAbsences([]);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erreur',
+        text: 'Impossible de charger les absences de cet étudiant',
+        confirmButtonColor: '#3085d6',
+      });
     } finally {
       setLoading(false);
     }
@@ -81,31 +151,56 @@ export default function Absences() {
   const exportToExcel = () => {
     if (!selectedStudent) return;
 
-    const data = [
-      {
-        "Nom": selectedStudent.nom,
-        "Prénom": selectedStudent.prenom,
-        "CIN": selectedStudent.cin,
-        "Email": selectedStudent.gmail,
-        "Section": selectedSection?.name,
-        "Nombre d'absences": absences.length,
-        "Dernière absence": absences.length > 0 
-          ? new Date(absences[absences.length - 1].date).toLocaleDateString()
-          : "Aucune"
-      },
-      ...absences.map((abs, index) => ({
-        "Absence N°": index + 1,
-        "Date": new Date(abs.date).toLocaleDateString(),
-        "Section": abs.section?.name || "Non spécifié",
-        "Raison": abs.reason || "Non spécifiée"
-      }))
-    ];
+    // Confirmation avant export
+    Swal.fire({
+      title: 'Exporter en Excel ?',
+      text: `Voulez-vous exporter les données de ${selectedStudent.nom} ${selectedStudent.prenom} ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Oui, exporter !',
+      cancelButtonText: 'Annuler'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const data = [
+          {
+            "Nom": selectedStudent.nom,
+            "Prénom": selectedStudent.prenom,
+            "CIN": selectedStudent.cin,
+            "Email": selectedStudent.gmail,
+            "Section": selectedSection?.name,
+            "Nombre d'absences": absences.length,
+            "Dernière absence": absences.length > 0 
+              ? new Date(absences[absences.length - 1].date).toLocaleDateString()
+              : "Aucune"
+          },
+          ...absences.map((abs, index) => ({
+            "Absence N°": index + 1,
+            "Date": new Date(abs.date).toLocaleDateString(),
+            "Section": abs.section?.name || "Non spécifié",
+            "Raison": abs.reason || "Non spécifiée"
+          }))
+        ];
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Absences");
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Absences");
 
-    XLSX.writeFile(workbook, `absences-${selectedStudent.nom}-${selectedStudent.prenom}.xlsx`);
+        XLSX.writeFile(workbook, `absences-${selectedStudent.nom}-${selectedStudent.prenom}.xlsx`);
+
+        // Alert de succès
+        Swal.fire({
+          icon: 'success',
+          title: 'Export réussi !',
+          text: 'Le fichier Excel a été généré avec succès',
+          timer: 2000,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
+      }
+    });
   };
 
   return (
@@ -123,9 +218,11 @@ export default function Absences() {
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent">
+                  <FontAwesomeIcon icon={faClipboardList} className="mr-3" />
                   Gestion des Absences
                 </h1>
                 <p className="text-blue-100 text-lg font-medium">
+                  <FontAwesomeIcon icon={faChartBar} className="mr-2" />
                   Suivez les absences des étudiants par section
                 </p>
               </div>
@@ -133,7 +230,8 @@ export default function Absences() {
               {/* Sélecteur de sections professionnel */}
               <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border border-white/30">
                 <label className="block text-white font-semibold mb-3">
-                  📊 Sélectionner une Section
+                  <FontAwesomeIcon icon={faUsers} className="mr-2" />
+                  Sélectionner une Section
                 </label>
                 {sectionLoading ? (
                   <div className="flex items-center gap-3 text-white/80">
@@ -158,9 +256,7 @@ export default function Absences() {
                       ))}
                     </select>
                     <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                      </svg>
+                      <FontAwesomeIcon icon={faChevronDown} />
                     </div>
                   </div>
                 )}
@@ -174,18 +270,21 @@ export default function Absences() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <span className="text-xl">🎯</span>
+                    <FontAwesomeIcon icon={faBook} className="text-xl" />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold">
                       Section {selectedSection.name}
                     </h2>
                     <p className="text-amber-100">
+                      <FontAwesomeIcon icon={faUserGraduate} className="mr-1" />
                       {students.length} étudiant{students.length !== 1 ? 's' : ''} dans cette section
                     </p>
                   </div>
                 </div>
-                <div className="text-4xl opacity-30">📚</div>
+                <div className="text-4xl opacity-30">
+                  <FontAwesomeIcon icon={faBook} />
+                </div>
               </div>
             </div>
           )}
@@ -198,7 +297,8 @@ export default function Absences() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                      👥 Liste des Étudiants
+                      <FontAwesomeIcon icon={faUsers} className="mr-2" />
+                      Liste des Étudiants
                     </h3>
                     <p className="text-gray-600">
                       Sélectionnez un étudiant pour voir ses absences
@@ -208,9 +308,7 @@ export default function Absences() {
                   {/* Barre de recherche */}
                   <div className="relative w-64">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                      </svg>
+                      <FontAwesomeIcon icon={faSearch} className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
                       type="text"
@@ -251,7 +349,7 @@ export default function Absences() {
                                 ? "bg-gradient-to-r from-blue-500 to-blue-600"
                                 : "bg-gradient-to-r from-gray-500 to-gray-600"
                             }`}>
-                              {student.nom.charAt(0)}{student.prenom.charAt(0)}
+                              <FontAwesomeIcon icon={faUserCircle} />
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -260,9 +358,11 @@ export default function Absences() {
                             </h4>
                             <div className="flex items-center gap-4 mt-1">
                               <span className="text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded-lg">
+                                <FontAwesomeIcon icon={faIdCard} className="mr-1" />
                                 {student.cin}
                               </span>
                               <span className="text-sm text-gray-500 truncate">
+                                <FontAwesomeIcon icon={faEnvelope} className="mr-1" />
                                 {student.gmail}
                               </span>
                             </div>
@@ -277,9 +377,7 @@ export default function Absences() {
                 ) : (
                   <div className="text-center py-12">
                     <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                      </svg>
+                      <FontAwesomeIcon icon={faUserGraduate} className="w-10 h-10 text-gray-400" />
                     </div>
                     <h4 className="text-lg font-semibold text-gray-700 mb-2">Aucun étudiant trouvé</h4>
                     <p className="text-gray-500 text-sm">
@@ -299,7 +397,8 @@ export default function Absences() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                      📋 Détail des Absences
+                      <FontAwesomeIcon icon={faClipboardList} className="mr-2" />
+                      Détail des Absences
                     </h3>
                     <p className="text-gray-600">
                       {selectedStudent 
@@ -315,7 +414,7 @@ export default function Absences() {
                       disabled={absences.length === 0}
                       className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-105 border-2 border-green-400 flex items-center gap-2 whitespace-nowrap"
                     >
-                      <span>📊</span>
+                      <FontAwesomeIcon icon={faFileExcel} />
                       Exporter Excel
                     </button>
                   )}
@@ -327,9 +426,7 @@ export default function Absences() {
                 {!selectedStudent ? (
                   <div className="text-center py-16">
                     <div className="w-24 h-24 mx-auto mb-6 bg-blue-50 rounded-full flex items-center justify-center">
-                      <svg className="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                      </svg>
+                      <FontAwesomeIcon icon={faInfoCircle} className="w-12 h-12 text-blue-400" />
                     </div>
                     <h4 className="text-xl font-semibold text-gray-700 mb-3">Aucun étudiant sélectionné</h4>
                     <p className="text-gray-500 max-w-sm mx-auto">
@@ -346,9 +443,7 @@ export default function Absences() {
                 ) : absences.length === 0 ? (
                   <div className="text-center py-16">
                     <div className="w-24 h-24 mx-auto mb-6 bg-green-50 rounded-full flex items-center justify-center">
-                      <svg className="w-12 h-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
+                      <FontAwesomeIcon icon={faCheckCircle} className="w-12 h-12 text-green-400" />
                     </div>
                     <h4 className="text-xl font-semibold text-gray-700 mb-2">Aucune absence</h4>
                     <p className="text-gray-500">
@@ -395,13 +490,14 @@ export default function Absences() {
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                                <span className="text-red-600 font-bold text-sm">❌</span>
+                                <FontAwesomeIcon icon={faTimesCircle} className="text-red-600 text-sm" />
                               </div>
                               <div>
                                 <h5 className="font-semibold text-gray-800">
                                   Absence #{index + 1}
                                 </h5>
                                 <p className="text-sm text-gray-600">
+                                  <FontAwesomeIcon icon={faCalendarAlt} className="mr-1" />
                                   {new Date(absence.date).toLocaleDateString('fr-FR', {
                                     weekday: 'long',
                                     year: 'numeric',
@@ -412,17 +508,24 @@ export default function Absences() {
                               </div>
                             </div>
                             <span className="bg-red-100 text-red-800 text-xs font-semibold px-3 py-1 rounded-full">
+                              <FontAwesomeIcon icon={faSignOutAlt} className="mr-1" />
                               Absent
                             </span>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             <div>
-                              <span className="text-gray-500 font-medium">Section:</span>
+                              <span className="text-gray-500 font-medium">
+                                <FontAwesomeIcon icon={faBook} className="mr-1" />
+                                Section:
+                              </span>
                               <span className="ml-2 text-gray-800">{absence.section?.name || "Non spécifié"}</span>
                             </div>
                             <div>
-                              <span className="text-gray-500 font-medium">Raison:</span>
+                              <span className="text-gray-500 font-medium">
+                                <FontAwesomeIcon icon={faExclamationTriangle} className="mr-1" />
+                                Raison:
+                              </span>
                               <span className={`ml-2 ${
                                 absence.reason && absence.reason !== "Non spécifiée" 
                                   ? "text-gray-800" 

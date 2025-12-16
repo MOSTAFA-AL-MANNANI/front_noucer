@@ -2,6 +2,31 @@ import React, { useEffect, useState, useMemo } from "react";
 import api from "./api";
 import Sidebar from "./sidebar";
 import * as XLSX from "xlsx";
+import Swal from 'sweetalert2';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faUsers, 
+  faUserPlus, 
+  faEdit, 
+  faTrash, 
+  faFileExcel, 
+  faSearch, 
+  faChartBar, 
+  faList, 
+  faSave, 
+  faTimes, 
+  faSync,
+  faPhone,
+  faEnvelope,
+  faIdCard,
+  faMapMarkerAlt,
+  faVenusMars,
+  faCalendarAlt,
+  faGraduationCap,
+  faCheckCircle,
+  faClock,
+  faUserCheck
+} from '@fortawesome/free-solid-svg-icons';
 
 export default function Students() {
   const [students, setStudents] = useState([]);
@@ -31,12 +56,20 @@ export default function Students() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchField, setSearchField] = useState("all");
   const [exportLoading, setExportLoading] = useState(false);
-  const [alert, setAlert] = useState({ show: false, message: "", type: "" });
 
-  // Fonction d'alerte améliorée
+  // Fonction d'alerte avec SweetAlert2
   const showAlert = (message, type = "success") => {
-    setAlert({ show: true, message, type });
-    setTimeout(() => setAlert({ show: false, message: "", type: "" }), 4000);
+    Swal.fire({
+      title: type === "success" ? "Succès" : 
+             type === "error" ? "Erreur" : 
+             type === "info" ? "Information" : "Alert",
+      text: message,
+      icon: type,
+      timer: 4000,
+      showConfirmButton: false,
+      toast: true,
+      position: 'top-end'
+    });
   };
 
   // Fetch students avec pagination
@@ -45,7 +78,6 @@ export default function Students() {
       setLoading(true);
       const res = await api.get(`/api/students?page=${page}`);
       
-      // Si l'API retourne un objet de pagination Laravel
       if (res.data.data) {
         setStudents(res.data.data);
         setPagination({
@@ -57,7 +89,6 @@ export default function Students() {
           to: res.data.to
         });
       } else {
-        // Si c'est un tableau simple (fallback)
         setStudents(res.data);
       }
       
@@ -94,7 +125,7 @@ export default function Students() {
         showAlert("Étudiant ajouté avec succès", "success");
       }
       resetForm();
-      fetchData(pagination.current_page); // Recharger la page actuelle
+      fetchData(pagination.current_page);
     } catch (error) {
       console.error("Erreur lors de l'opération:", error);
       showAlert("Erreur lors de l'opération", "error");
@@ -118,13 +149,25 @@ export default function Students() {
     setEditId(null);
   };
 
-  // Supprimer
+  // Supprimer avec SweetAlert2
   const handleDelete = async (id) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cet étudiant ?")) {
+    const result = await Swal.fire({
+      title: 'Êtes-vous sûr ?',
+      text: "Vous ne pourrez pas revenir en arrière !",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Oui, supprimer !',
+      cancelButtonText: 'Annuler',
+      reverseButtons: true
+    });
+
+    if (result.isConfirmed) {
       try {
         await api.delete(`/students/${id}`);
         showAlert("Étudiant supprimé avec succès", "success");
-        fetchData(pagination.current_page); // Recharger la page actuelle
+        fetchData(pagination.current_page);
       } catch (error) {
         console.error("Erreur lors de la suppression:", error);
         showAlert("Erreur lors de la suppression", "error");
@@ -155,7 +198,6 @@ export default function Students() {
   const exportToExcel = async () => {
     setExportLoading(true);
     try {
-      // Récupérer tous les étudiants pour l'export
       const res = await api.get("/api/students?all=true");
       const allStudents = res.data.data || res.data;
       
@@ -189,7 +231,7 @@ export default function Students() {
     }
   };
 
-  // Filtrage avancé avec useMemo (sur les données de la page actuelle)
+  // Filtrage avancé avec useMemo
   const filteredStudents = useMemo(() => {
     if (!searchTerm.trim()) return students;
 
@@ -219,8 +261,6 @@ export default function Students() {
     });
   }, [students, searchTerm, searchField]);
 
-  // AJOUTEZ CES FONCTIONS MANQUANTES :
-
   const getStatusColor = (status) => {
     switch (status) {
       case "passed": return "bg-green-100 text-green-800 border border-green-200";
@@ -239,7 +279,6 @@ export default function Students() {
     }
   };
 
-  // Fonction pour obtenir les statistiques (utilisée dans la section statistiques)
   const getStatistics = () => {
     return {
       total: students.length,
@@ -260,41 +299,16 @@ export default function Students() {
       
       {/* Main Content */}
       <div className="w-9/12 p-6">
-        {/* Alert Notification */}
-        {alert.show && (
-          <div className={`mb-6 p-4 rounded-lg border-l-4 shadow-lg ${
-            alert.type === "success" ? "bg-green-50 border-green-500 text-green-700" :
-            alert.type === "error" ? "bg-red-50 border-red-500 text-red-700" :
-            "bg-blue-50 border-blue-500 text-blue-700"
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-xl mr-3">
-                  {alert.type === "success" ? "✅" : 
-                   alert.type === "error" ? "❌" : "ℹ️"}
-                </span>
-                <span className="font-medium">{alert.message}</span>
-              </div>
-              <button 
-                onClick={() => setAlert({ show: false, message: "", type: "" })}
-                className="text-gray-500 hover:text-gray-700 text-lg"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Header */}
         <div className="mb-8">
           <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-600">
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                  <span className="w-2 h-8 bg-blue-600 rounded-full mr-3"></span>
+                  <FontAwesomeIcon icon={faUsers} className="mr-3 text-blue-600" />
                   Gestion des Étudiants
                 </h2>
-                <p className="text-gray-600 mt-2 ml-5">
+                <p className="text-gray-600 mt-2 ml-8">
                   Ajouter, modifier et gérer les étudiants
                 </p>
               </div>
@@ -321,7 +335,10 @@ export default function Students() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 pr-4 py-2 w-64 focus:outline-none"
                     />
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
+                    <FontAwesomeIcon 
+                      icon={faSearch} 
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" 
+                    />
                   </div>
                 </div>
 
@@ -332,12 +349,12 @@ export default function Students() {
                 >
                   {exportLoading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <FontAwesomeIcon icon={faSync} className="animate-spin mr-2" />
                       Export...
                     </>
                   ) : (
                     <>
-                      <span className="mr-2">📊</span>
+                      <FontAwesomeIcon icon={faFileExcel} className="mr-2" />
                       Excel
                     </>
                   )}
@@ -352,7 +369,11 @@ export default function Students() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 rounded-t-xl">
               <h3 className="text-lg font-semibold text-white flex items-center">
-                {editId ? "✏️ Modifier l'Étudiant" : "👨‍🎓 Ajouter un Étudiant"}
+                <FontAwesomeIcon 
+                  icon={editId ? faEdit : faUserPlus} 
+                  className="mr-2" 
+                />
+                {editId ? "Modifier l'Étudiant" : "Ajouter un Étudiant"}
               </h3>
             </div>
             <div className="p-6">
@@ -360,7 +381,9 @@ export default function Students() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Nom */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nom *
+                    </label>
                     <input
                       type="text"
                       placeholder="Nom"
@@ -373,7 +396,9 @@ export default function Students() {
 
                   {/* Prénom */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Prénom *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Prénom *
+                    </label>
                     <input
                       type="text"
                       placeholder="Prénom"
@@ -386,7 +411,10 @@ export default function Students() {
 
                   {/* Numéro */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FontAwesomeIcon icon={faPhone} className="mr-2 text-gray-500" />
+                      Téléphone *
+                    </label>
                     <input
                       type="text"
                       placeholder="Numéro"
@@ -399,7 +427,10 @@ export default function Students() {
 
                   {/* Genre */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Genre</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FontAwesomeIcon icon={faVenusMars} className="mr-2 text-gray-500" />
+                      Genre
+                    </label>
                     <select
                       value={form.genre}
                       onChange={(e) => setForm({ ...form, genre: e.target.value })}
@@ -412,7 +443,10 @@ export default function Students() {
 
                   {/* Date de naissance */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Date de naissance</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FontAwesomeIcon icon={faCalendarAlt} className="mr-2 text-gray-500" />
+                      Date de naissance
+                    </label>
                     <input
                       type="date"
                       value={form.date_naissance}
@@ -423,7 +457,10 @@ export default function Students() {
 
                   {/* Niveau scolaire */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Niveau scolaire</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FontAwesomeIcon icon={faGraduationCap} className="mr-2 text-gray-500" />
+                      Niveau scolaire
+                    </label>
                     <select 
                       value={form.niveau_sco}
                       onChange={(e) => setForm({ ...form, niveau_sco: e.target.value })} 
@@ -441,7 +478,9 @@ export default function Students() {
 
                   {/* Status */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Statut
+                    </label>
                     <select
                       value={form.status}
                       onChange={(e) => setForm({ ...form, status: e.target.value })}
@@ -455,7 +494,10 @@ export default function Students() {
 
                   {/* Email */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FontAwesomeIcon icon={faEnvelope} className="mr-2 text-gray-500" />
+                      Email
+                    </label>
                     <input
                       type="email"
                       placeholder="adresse@email.com"
@@ -466,7 +508,10 @@ export default function Students() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Adresse</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-gray-500" />
+                      Adresse
+                    </label>
                     <input
                       type="text"
                       placeholder="Adresse"
@@ -478,7 +523,9 @@ export default function Students() {
 
                   {/* Filière */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Filière</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Filière
+                    </label>
                     <select 
                       value={form.filiere} 
                       onChange={(e) => setForm({ ...form, filiere: e.target.value })} 
@@ -493,7 +540,10 @@ export default function Students() {
 
                   {/* CIN */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">CIN</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <FontAwesomeIcon icon={faIdCard} className="mr-2 text-gray-500" />
+                      CIN
+                    </label>
                     <input
                       type="text"
                       placeholder="Numéro CIN"
@@ -510,7 +560,7 @@ export default function Students() {
                     type="submit"
                     className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200 flex items-center space-x-2 shadow-md"
                   >
-                    <span>{editId ? "💾" : "➕"}</span>
+                    <FontAwesomeIcon icon={editId ? faSave : faUserPlus} />
                     <span>{editId ? "Modifier" : "Ajouter"}</span>
                   </button>
                   {editId && (
@@ -519,7 +569,7 @@ export default function Students() {
                       onClick={resetForm}
                       className="bg-amber-400 hover:bg-amber-500 text-gray-800 font-medium px-6 py-3 rounded-lg transition duration-200 flex items-center space-x-2 shadow-md"
                     >
-                      <span>❌</span>
+                      <FontAwesomeIcon icon={faTimes} />
                       <span>Annuler</span>
                     </button>
                   )}
@@ -531,22 +581,27 @@ export default function Students() {
           {/* Statistiques améliorées */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-              📊 Statistiques des Étudiants
+              <FontAwesomeIcon icon={faChartBar} className="mr-2 text-blue-600" />
+              Statistiques des Étudiants
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-center text-white shadow-lg">
+                <FontAwesomeIcon icon={faUsers} className="text-2xl mb-2" />
                 <div className="text-2xl font-bold">{stats.total}</div>
                 <div className="text-sm opacity-90">Total Étudiants</div>
               </div>
               <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-center text-white shadow-lg">
+                <FontAwesomeIcon icon={faClock} className="text-2xl mb-2" />
                 <div className="text-2xl font-bold">{stats.enAttente}</div>
                 <div className="text-sm opacity-90">En attente</div>
               </div>
               <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-center text-white shadow-lg">
+                <FontAwesomeIcon icon={faCheckCircle} className="text-2xl mb-2" />
                 <div className="text-2xl font-bold">{stats.reussis}</div>
                 <div className="text-sm opacity-90">Réussis</div>
               </div>
               <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-center text-white shadow-lg">
+                <FontAwesomeIcon icon={faUserCheck} className="text-2xl mb-2" />
                 <div className="text-2xl font-bold">{stats.developpement}</div>
                 <div className="text-sm opacity-90">Développement</div>
               </div>
@@ -575,7 +630,8 @@ export default function Students() {
           <div className="bg-gradient-to-r from-amber-400 to-amber-300 px-6 py-4 rounded-t-xl">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                📋 Liste des Étudiants
+                <FontAwesomeIcon icon={faList} className="mr-2" />
+                Liste des Étudiants
                 <span className="ml-3 bg-white text-amber-600 text-sm px-3 py-1 rounded-full shadow-sm">
                   {pagination.from}-{pagination.to} sur {pagination.total} étudiant(s)
                 </span>
@@ -590,14 +646,14 @@ export default function Students() {
           <div className="p-6">
             {loading ? (
               <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-600">Chargement des étudiants...</span>
+                <FontAwesomeIcon icon={faSync} className="animate-spin text-blue-600 text-2xl mr-3" />
+                <span className="text-gray-600">Chargement des étudiants...</span>
               </div>
             ) : students.length === 0 ? (
               <div className="text-center py-12">
                 <div className="flex justify-center mb-4">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">🔍</span>
+                    <FontAwesomeIcon icon={faSearch} className="text-2xl text-gray-400" />
                   </div>
                 </div>
                 <p className="text-gray-600 font-medium text-lg mb-2">
@@ -627,12 +683,21 @@ export default function Students() {
                           <td className="px-6 py-4">
                             <div>
                               <div className="text-sm font-medium text-gray-900">{s.nom} {s.prenom}</div>
-                              <div className="text-xs text-gray-500 font-mono mt-1">CIN: {s.cin || "Non renseigné"}</div>
+                              <div className="text-xs text-gray-500 font-mono mt-1 flex items-center">
+                                <FontAwesomeIcon icon={faIdCard} className="mr-1 text-gray-400" />
+                                CIN: {s.cin || "Non renseigné"}
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900">{s.numero}</div>
-                            <div className="text-xs text-gray-500 truncate max-w-[150px]">{s.gmail}</div>
+                            <div className="text-sm text-gray-900 flex items-center">
+                              <FontAwesomeIcon icon={faPhone} className="mr-2 text-gray-400" />
+                              {s.numero}
+                            </div>
+                            <div className="text-xs text-gray-500 truncate max-w-[150px] flex items-center">
+                              <FontAwesomeIcon icon={faEnvelope} className="mr-2 text-gray-400" />
+                              {s.gmail}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
                             <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getFiliereColor(s.filiere)}`}>
@@ -647,7 +712,8 @@ export default function Students() {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-sm text-gray-900">
+                            <span className="text-sm text-gray-900 flex items-center">
+                              <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-2 text-gray-400" />
                               {s.adresse || "Non renseignée"}
                             </span>
                           </td>
@@ -658,7 +724,7 @@ export default function Students() {
                                 className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-md transition duration-200 flex items-center space-x-1 text-sm"
                                 title="Modifier"
                               >
-                                <span>✏️</span>
+                                <FontAwesomeIcon icon={faEdit} />
                                 <span className="hidden lg:inline">Modifier</span>
                               </button>
                               <button 
@@ -666,7 +732,7 @@ export default function Students() {
                                 className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-md transition duration-200 flex items-center space-x-1 text-sm"
                                 title="Supprimer"
                               >
-                                <span>🗑️</span>
+                                <FontAwesomeIcon icon={faTrash} />
                                 <span className="hidden lg:inline">Supprimer</span>
                               </button>
                             </div>
